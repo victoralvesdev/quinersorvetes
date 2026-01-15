@@ -1,0 +1,30 @@
+Assunto: Solicitação de Documentação para Integração de Pagamentos - Sistema SaaS
+
+Prezados,
+
+Meu nome é [SEU NOME] e estou desenvolvendo um sistema de gestão para restaurantes (SaaS) que inclui funcionalidades de pedidos online e delivery.
+
+Gostaria de integrar as soluções de pagamento da InfinitePay no sistema, especificamente:
+
+1. **Pagamento via PIX** - Para oferecer pagamento instantâneo aos clientes
+2. **Pagamento com Cartão de Crédito/Débito** - Para permitir parcelamento e maior flexibilidade
+
+O sistema será uma plataforma SaaS, onde múltiplos estabelecimentos poderão se cadastrar e utilizar a solução, cada um com sua própria conta InfinitePay.
+
+Gostaria de saber:
+
+- Se há documentação completa da API disponível para integração de PIX e cartão de crédito/débito
+- Se é possível fazer a integração em um modelo SaaS (múltiplos clientes, cada um com sua própria conta)
+- Quais são os requisitos técnicos e de cadastro necessários
+- Se há alguma taxa ou custo adicional para integração via API
+- Exemplos de implementação ou SDK disponível
+
+Agradeço desde já pela atenção e fico à disposição para fornecer mais informações sobre o projeto, se necessário.
+
+Atenciosamente,
+
+[SEU NOME]
+[SEU EMAIL]
+[SEU TELEFONE - OPCIONAL]
+[EMPRESA/NEGÓCIO - OPCIONAL]
+
