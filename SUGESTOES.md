@@ -6,37 +6,20 @@ Documento gerado com sugestões de melhorias para o projeto.
 
 ## VULNERABILIDADES CRÍTICAS DE SEGURANÇA
 
-### 1. Credenciais expostas no código fonte
+### ~~1. Credenciais expostas no código fonte~~ [CORRIGIDO]
 
-**Arquivo:** `lib/supabase/client.ts` (Linhas 3-4)
-```typescript
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://youvnaepznqfbpdacibs.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
-```
-**Problema:** Chave do Supabase hardcoded como fallback
-**Risco:** Alto - Credenciais expostas no histórico do git
-**Solução:** Remover chaves hardcoded, usar apenas variáveis de ambiente
+**Arquivo:** `lib/supabase/client.ts`
+**Status:** Corrigido - Agora exige variáveis de ambiente obrigatórias
 
-### 2. Credenciais da Evolution API hardcoded
+### ~~2. Credenciais da Evolution API hardcoded~~ [CORRIGIDO]
 
-**Arquivo:** `lib/evolution-api.ts` (Linhas 5-7)
-```typescript
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://victoralvesdev-evolution-api.36merq.easypanel.host';
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '0F4A6FF5E2CB-46F5-85DF-86A34140ECA9';
-```
-**Problema:** Chave da API hardcoded
-**Risco:** Crítico - Integração WhatsApp comprometida
-**Solução:** Exigir variáveis de ambiente, remover todos os fallbacks
+**Arquivo:** `lib/evolution-api.ts`
+**Status:** Corrigido - Verifica configuração antes de cada chamada
 
-### 3. CPF hardcoded nos pagamentos
+### ~~3. CPF hardcoded nos pagamentos~~ [CORRIGIDO]
 
-**Arquivo:** `app/api/mercadopago/create-pix/route.ts` (Linhas 46-47)
-```typescript
-number: '44327061808',  // CPF hardcoded
-```
-**Problema:** CPF falso/teste usado como fallback
-**Risco:** Alto - Processamento de pagamento com dados inválidos
-**Solução:** Validar e exigir CPF real do cliente
+**Arquivos:** `app/api/mercadopago/create-pix/route.ts` e `create-card-payment/route.ts`
+**Status:** Corrigido - CPF agora é obrigatório e validado
 
 ---
 
@@ -223,17 +206,17 @@ pollingRef.current = setInterval(() => {
 
 | Severidade | Quantidade | Categoria |
 |------------|------------|-----------|
-| Crítico | 3 | Segurança (Credenciais Expostas) |
+| ~~Crítico~~ | ~~3~~ 0 | ~~Segurança (Credenciais Expostas)~~ CORRIGIDO |
 | Alto | 3 | Segurança (Validação, Auth, Webhooks) |
 | Médio | 10 | Qualidade, Performance, Segurança |
 | Baixo | 9 | Qualidade de Código, Acessibilidade |
-| **Total** | **25** | **Problemas Encontrados** |
+| **Total** | **22** | **Problemas Restantes** |
 
 ---
 
 ## TOP 5 AÇÕES IMEDIATAS
 
-1. **REMOVER TODAS AS CREDENCIAIS HARDCODED** de `lib/supabase/client.ts`, `lib/evolution-api.ts`, e `app/api/mercadopago/`
+1. ~~**REMOVER TODAS AS CREDENCIAIS HARDCODED**~~ [CONCLUÍDO]
 
 2. **ADICIONAR VERIFICAÇÃO DE ASSINATURA NO WEBHOOK** em `app/api/whatsapp/webhook/route.ts`
 
