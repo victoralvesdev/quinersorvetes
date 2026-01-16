@@ -4,6 +4,22 @@ Documento gerado com sugestões de melhorias para o projeto.
 
 ---
 
+## NOVAS FUNCIONALIDADES IMPLEMENTADAS
+
+### Webhook Mercado Pago [NOVO]
+
+**Arquivo:** `app/api/mercadopago/webhook/route.ts`
+**URL:** `https://www.quiner.com.br/api/mercadopago/webhook`
+**Status:** Implementado - Recebe notificações de pagamento e atualiza pedidos automaticamente
+
+**O que foi feito:**
+- Criado endpoint webhook para receber notificações do Mercado Pago
+- Adicionado campo `external_reference` (orderId) nos pagamentos PIX e Cartão
+- Adicionados campos `is_paid` e `payment_id` na tabela orders
+- Função `updateOrderPaymentStatus` para atualizar status de pagamento
+
+---
+
 ## VULNERABILIDADES CRÍTICAS DE SEGURANÇA
 
 ### ~~1. Credenciais expostas no código fonte~~ [CORRIGIDO]

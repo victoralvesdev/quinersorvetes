@@ -22,9 +22,9 @@ export async function POST(request: NextRequest) {
     console.log('Token configurado:', ACCESS_TOKEN.substring(0, 20) + '...');
 
     const body = await request.json();
-    const { amount, description, payerEmail, payerName, payerCpf } = body;
+    const { amount, description, payerEmail, payerName, payerCpf, orderId } = body;
 
-    console.log('Recebendo requisição PIX:', { amount, description });
+    console.log('Recebendo requisição PIX:', { amount, description, orderId });
 
     if (!amount || !description) {
       return NextResponse.json(
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Criar pagamento PIX usando API REST direta
-    const paymentData = {
+    const paymentData: any = {
       transaction_amount: parseFloat(amount),
       description: description,
       payment_method_id: 'pix',
@@ -55,6 +55,11 @@ export async function POST(request: NextRequest) {
         },
       },
     };
+
+    // Adiciona referência do pedido para rastreamento via webhook
+    if (orderId) {
+      paymentData.external_reference = orderId;
+    }
 
     console.log('Enviando requisição para Mercado Pago:', JSON.stringify(paymentData, null, 2));
 

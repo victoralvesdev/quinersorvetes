@@ -26,10 +26,11 @@ export async function POST(request: NextRequest) {
       issuerId,
       payerEmail,
       payerName,
-      payerCpf
+      payerCpf,
+      orderId
     } = body;
 
-    console.log('Recebendo requisição de pagamento com cartão:', { amount, description, installments });
+    console.log('Recebendo requisição de pagamento com cartão:', { amount, description, installments, orderId });
 
     if (!token || !amount || !paymentMethodId) {
       return NextResponse.json(
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const paymentData = {
+    const paymentData: any = {
       transaction_amount: parseFloat(amount),
       token: token,
       description: description || 'Pedido Quiner',
@@ -62,6 +63,11 @@ export async function POST(request: NextRequest) {
         },
       },
     };
+
+    // Adiciona referência do pedido para rastreamento via webhook
+    if (orderId) {
+      paymentData.external_reference = orderId;
+    }
 
     console.log('Enviando pagamento para Mercado Pago...');
 

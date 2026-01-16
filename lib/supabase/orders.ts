@@ -276,6 +276,41 @@ export async function getOrdersAwaitingDeliveryConfirmation(
 /**
  * Busca pedido pelo telefone do usuário que está em status saiu_entrega
  */
+/**
+ * Atualiza o status de pagamento de um pedido
+ */
+export async function updateOrderPaymentStatus(
+  orderId: string,
+  isPaid: boolean,
+  paymentId?: string
+): Promise<Order | null> {
+  console.log('[updateOrderPaymentStatus] Atualizando pedido:', orderId, 'isPaid:', isPaid);
+
+  const updateData: any = {
+    is_paid: isPaid,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (paymentId) {
+    updateData.payment_id = paymentId;
+  }
+
+  const { data, error } = await supabase
+    .from("orders")
+    .update(updateData)
+    .eq("id", orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[updateOrderPaymentStatus] Erro:", error);
+    return null;
+  }
+
+  console.log('[updateOrderPaymentStatus] Pedido atualizado:', data?.id);
+  return data;
+}
+
 export async function getActiveDeliveryOrderByPhone(phone: string): Promise<Order | null> {
   // Remove formatação do telefone
   const cleanPhone = phone.replace(/\D/g, '');
