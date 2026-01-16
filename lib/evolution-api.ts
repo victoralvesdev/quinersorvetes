@@ -2,9 +2,13 @@
  * Cliente para integração com Evolution API v2.x (WhatsApp)
  */
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://victoralvesdev-evolution-api.36merq.easypanel.host';
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '0F4A6FF5E2CB-46F5-85DF-86A34140ECA9';
-const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'Quiner';
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || '';
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
+const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || '';
+
+function isEvolutionConfigured(): boolean {
+  return Boolean(EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE);
+}
 
 /**
  * Envia uma mensagem de texto simples
@@ -13,6 +17,11 @@ export async function sendTextMessage(
   phoneNumber: string,
   text: string
 ): Promise<boolean> {
+  if (!isEvolutionConfigured()) {
+    console.error('Evolution API não configurada. Verifique as variáveis de ambiente.');
+    return false;
+  }
+
   try {
     // Evolution API v2.x usa formato simplificado
     const payload = {
@@ -53,6 +62,11 @@ export async function sendImageMessage(
   imageSource: string,
   caption?: string
 ): Promise<boolean> {
+  if (!isEvolutionConfigured()) {
+    console.error('Evolution API não configurada. Verifique as variáveis de ambiente.');
+    return false;
+  }
+
   try {
     // Detecta se é base64 ou URL
     const isBase64 = imageSource.startsWith('data:') || !imageSource.startsWith('http');
@@ -124,6 +138,11 @@ export async function sendButtonMessage(
     buttons: { id: string; text: string }[];
   }
 ): Promise<boolean> {
+  if (!isEvolutionConfigured()) {
+    console.error('Evolution API não configurada. Verifique as variáveis de ambiente.');
+    return false;
+  }
+
   try {
     // Formata o número para o formato correto do WhatsApp
     // Se já tiver @s.whatsapp.net, mantém; senão, adiciona
@@ -300,6 +319,11 @@ export async function sendOrderMessage(
   },
   adminPhoneNumber?: string
 ): Promise<boolean> {
+  if (!isEvolutionConfigured()) {
+    console.error('Evolution API não configurada. Verifique as variáveis de ambiente.');
+    return false;
+  }
+
   try {
     // Formata os itens do pedido
     const itemsText = orderData.items
@@ -392,6 +416,11 @@ export async function sendListMessage(
     rows: { title: string; description?: string; rowId: string }[];
   }[]
 ): Promise<boolean> {
+  if (!isEvolutionConfigured()) {
+    console.error('Evolution API não configurada. Verifique as variáveis de ambiente.');
+    return false;
+  }
+
   try {
     // Formata o número
     let formattedNumber = phoneNumber.trim();
@@ -462,6 +491,11 @@ export async function sendListMessage(
  * Obtém o base64 de uma mídia (imagem, áudio, vídeo) de uma mensagem
  */
 export async function getMediaBase64(messageId: string): Promise<string | null> {
+  if (!isEvolutionConfigured()) {
+    console.error('Evolution API não configurada. Verifique as variáveis de ambiente.');
+    return null;
+  }
+
   try {
     const payload = {
       message: {

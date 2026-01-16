@@ -22,13 +22,20 @@ export async function POST(request: NextRequest) {
     console.log('Token configurado:', ACCESS_TOKEN.substring(0, 20) + '...');
 
     const body = await request.json();
-    const { amount, description, payerEmail, payerName, payerPhone } = body;
+    const { amount, description, payerEmail, payerName, payerCpf } = body;
 
     console.log('Recebendo requisição PIX:', { amount, description });
 
     if (!amount || !description) {
       return NextResponse.json(
         { error: 'Amount e description são obrigatórios' },
+        { status: 400 }
+      );
+    }
+
+    if (!payerCpf) {
+      return NextResponse.json(
+        { error: 'CPF do pagador é obrigatório' },
         { status: 400 }
       );
     }
@@ -44,7 +51,7 @@ export async function POST(request: NextRequest) {
         last_name: payerName?.split(' ').slice(1).join(' ') || 'Quiner',
         identification: {
           type: 'CPF',
-          number: '44327061808',
+          number: payerCpf.replace(/\D/g, ''),
         },
       },
     };

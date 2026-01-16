@@ -38,6 +38,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!payerCpf) {
+      return NextResponse.json(
+        { error: 'CPF do pagador é obrigatório' },
+        { status: 400 }
+      );
+    }
+
     const paymentData = {
       transaction_amount: parseFloat(amount),
       token: token,
@@ -51,7 +58,7 @@ export async function POST(request: NextRequest) {
         last_name: payerName?.split(' ').slice(1).join(' ') || 'Quiner',
         identification: {
           type: 'CPF',
-          number: payerCpf || '44327061808',
+          number: payerCpf.replace(/\D/g, ''),
         },
       },
     };
