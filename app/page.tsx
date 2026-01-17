@@ -68,39 +68,39 @@ export default function Home() {
     <>
       {/* Layout Mobile */}
       <div className="min-h-screen pb-24 md:hidden" style={{ backgroundColor: '#FAF9F4', paddingTop: '80px' }}>
-        <div className="pt-4">
-          <PromoBanner />
+      <div className="pt-4">
+        <PromoBanner />
+      </div>
+
+      <CategoryNav
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+      />
+
+      {isLoading ? (
+        <div className="text-center py-12 px-4">
+          <p className="text-gray-500 text-lg">Carregando produtos...</p>
         </div>
-
-        <CategoryNav
-          categories={categories}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-        />
-
-        {isLoading ? (
-          <div className="text-center py-12 px-4">
-            <p className="text-gray-500 text-lg">Carregando produtos...</p>
+      ) : filteredProducts.length === 0 ? (
+        <div className="text-center py-12 px-4">
+          <p className="text-gray-500 text-lg">
+            Nenhum produto encontrado
+          </p>
+        </div>
+      ) : (
+        <div className="px-4 py-4" style={{ backgroundColor: '#FAF9F4' }}>
+          <div className="grid grid-cols-2 gap-3">
+            {filteredProducts.map((product) => (
+              <ProductCardMobile
+                key={product.id}
+                product={product}
+                onViewDetails={setSelectedProduct}
+              />
+            ))}
           </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-12 px-4">
-            <p className="text-gray-500 text-lg">
-              Nenhum produto encontrado
-            </p>
-          </div>
-        ) : (
-          <div className="px-4 py-4" style={{ backgroundColor: '#FAF9F4' }}>
-            <div className="grid grid-cols-2 gap-3">
-              {filteredProducts.map((product) => (
-                <ProductCardMobile
-                  key={product.id}
-                  product={product}
-                  onViewDetails={setSelectedProduct}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
+      )}
 
         <BottomNav />
       </div>

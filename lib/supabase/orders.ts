@@ -58,6 +58,27 @@ export async function createOrder(orderData: OrderData): Promise<Order> {
   return data;
 }
 
+export async function getAllOrders(): Promise<Order[]> {
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`
+      *,
+      users (
+        id,
+        name,
+        phone
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Erro ao buscar pedidos:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
 export async function getUserOrders(userId: string): Promise<Order[]> {
   const { data, error } = await supabase
     .from("orders")

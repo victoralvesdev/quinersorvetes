@@ -117,3 +117,25 @@ export async function findOrCreateUser(userData: UserFormData): Promise<User> {
   }
 }
 
+/**
+ * Busca todos os usuários
+ */
+export async function getAllUsers(): Promise<User[]> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao buscar usuários:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Erro ao buscar usuários:', error);
+    return [];
+  }
+}
+

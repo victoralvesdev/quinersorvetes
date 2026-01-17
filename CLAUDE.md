@@ -9,10 +9,11 @@ QuinerApp is an ice cream shop delivery management system built with Next.js 14 
 ## Development Commands
 
 ```bash
-npm run dev      # Development server (http://localhost:3000)
-npm run build    # Production build
-npm start        # Production server
-npm run lint     # Run linter
+npm run dev        # Development server (http://localhost:3000)
+npm run dev:https  # Development server with HTTPS (for testing webhooks, payment callbacks)
+npm run build      # Production build
+npm start          # Production server
+npm run lint       # Run linter
 ```
 
 ## Architecture Overview
@@ -23,8 +24,10 @@ npm run lint     # Run linter
 1. **Zustand** (`store/cartStore.ts`) - Shopping cart state with methods: `addItem`, `removeItem`, `updateQuantity`, `clearCart`, `getTotal`, `getItemCount`
 2. **React Context** (`contexts/`) - Cross-cutting concerns
    - `AuthContext` - Phone-based authentication with localStorage persistence (key: `quiner_user_phone`)
+   - `AdminContext` - Admin password authentication with localStorage persistence (key: `quiner_admin_auth`)
    - `CartContext` - Convenience wrapper around Zustand cart store
-   - Provider order in `app/layout.tsx`: `AuthProvider` > `CartProvider`
+   - `LoginModalContext` - Controls login modal visibility
+   - Provider hierarchy in `components/providers/AppProviders.tsx`: `ToastProvider` > `AuthProvider` > `AdminProvider` > `CartProvider` > `LoginModalProvider`
 
 ### Data Layer
 
@@ -40,9 +43,16 @@ npm run lint     # Run linter
 
 ```
 app/api/
-├── mercadopago/create-pix/route.ts   # PIX payment creation via Mercado Pago REST API
+├── mercadopago/
+│   ├── create-pix/route.ts           # PIX payment creation via Mercado Pago REST API
+│   ├── create-card-payment/route.ts  # Card payment creation
+│   ├── check-payment/route.ts        # Payment status verification
+│   └── webhook/route.ts              # Mercado Pago payment notifications
+├── orders/
+│   └── update-status/route.ts        # Order status updates
 └── whatsapp/
     ├── send-order/route.ts           # Send order notifications
+    ├── delivery-reminder/route.ts    # Delivery reminder notifications
     └── webhook/route.ts              # Evolution API webhook for WhatsApp bot
 ```
 
@@ -71,24 +81,30 @@ app/api/
 /pedidos                   # User orders
 /entregadores              # Delivery personnel
 /relatorios                # Reports
-/gestao-admin/             # Admin dashboard
+/gestao-admin/             # Admin dashboard (protected by AdminContext)
+  ├── login/               # Admin login page (unprotected)
+  ├── clientes/            # Customer management
   ├── entregadores/        # Delivery management
   ├── pedidos/             # Order management
   ├── produtos/            # Product management
   └── relatorios/          # Reports
 ```
 
+**Admin Route Protection**: Routes under `/gestao-admin/` (except `/login`) are wrapped with `AdminProtected` component that redirects unauthenticated users to the login page. The admin layout uses `AdminLayout` for consistent navigation.
+
 ### Component Organization
 
 **Path Alias**: Use `@/` for imports (e.g., `import { Product } from "@/types/product"`)
 
 **Categories**:
+- `/components/admin/` - Admin dashboard (AdminLayout, AdminProtected)
 - `/components/auth/` - Authentication (LoginModal)
 - `/components/cardapio/` - Product catalog (Cart, ProductCard, CategoryFilter, SearchBar, ProductModal)
 - `/components/checkout/` - Checkout flow (AddressForm, PaymentMethodSelector, CheckoutModal, PixPayment, PixPaymentScreen)
 - `/components/layout/` - App structure (Header, Footer)
 - `/components/mobile/` - Mobile-specific (BottomNav, HeaderMobile, ProductCardMobile)
-- `/components/ui/` - Reusable primitives (Button, Card, Input)
+- `/components/providers/` - Context providers (AppProviders)
+- `/components/ui/` - Reusable primitives (Button, Card, Input, Toast)
 
 **Client Components**: Add `"use client"` directive when using React hooks, browser APIs, or event handlers.
 
@@ -132,11 +148,21 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 ```
 
+## Toast Notifications
+
+Use `useToast` hook from `@/components/ui/Toast`:
+```typescript
+import { useToast } from "@/components/ui/Toast";
+
+const { showToast } = useToast();
+showToast("Mensagem de sucesso", "success");  // success | error | info
+```
+
 ## Environment Variables
 
 ```env
 # Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://youvnaepznqfbpdacibs.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 
 # Mercado Pago
@@ -146,11 +172,19 @@ MERCADOPAGO_ACCESS_TOKEN=your_access_token
 EVOLUTION_API_URL=your_evolution_api_url
 EVOLUTION_API_KEY=your_api_key
 EVOLUTION_INSTANCE=Quiner
+
+# Admin
+NEXT_PUBLIC_ADMIN_PASSWORD=your_admin_password
 ```
 
-## Known Issues
+## Known Issues & Technical Debt
 
 1. **localStorage SSR**: Auth relies on localStorage - use `typeof window !== "undefined"` checks
 2. **Portuguese language**: All UI text and strings are in Portuguese (Brazil)
 3. **Phone-based auth**: No email/password - uses phone numbers as identifiers
-4. **Hardcoded fallbacks**: Some API keys have hardcoded fallbacks in code - always use environment variables in production
+
+See `SUGESTOES.md` for a detailed analysis of remaining issues including:
+- Webhook signature verification
+- API request validation
+- Rate limiting
+- Performance optimizations

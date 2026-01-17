@@ -103,9 +103,7 @@ export const Footer = () => {
               <p className="text-sm text-center md:text-left" style={{ color: '#5d7184' }}>
                 © 2024 Quiner Sorvetes. Todos os direitos reservados.
               </p>
-              <div className="flex items-center">
-                <Sparkles className="w-5 h-5" style={{ color: '#E8DCC6' }} />
-              </div>
+
             </div>
           </div>
         </div>

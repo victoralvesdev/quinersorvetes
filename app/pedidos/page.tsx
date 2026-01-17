@@ -100,16 +100,16 @@ export default function PedidosPage() {
       <>
         {/* Layout Mobile - Não autenticado */}
         <div className="min-h-screen pb-24 md:hidden" style={{ backgroundColor: '#FAF9F4' }}>
-          <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
-            <Package className="w-16 h-16 text-gray-400 mb-4" />
-            <h2 className="text-xl font-bold text-secondary mb-2">
-              Faça login para ver seus pedidos
-            </h2>
-            <p className="text-gray-600 text-center mb-6">
-              Entre com seu telefone para acessar o histórico de pedidos
-            </p>
-              <Button
-                variant="primary"
+        <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+          <Package className="w-16 h-16 text-gray-400 mb-4" />
+          <h2 className="text-xl font-bold text-secondary mb-2">
+            Faça login para ver seus pedidos
+          </h2>
+          <p className="text-gray-600 text-center mb-6">
+            Entre com seu telefone para acessar o histórico de pedidos
+          </p>
+          <Button
+            variant="primary"
                 onClick={openLoginModal}
               >
                 Fazer Login
@@ -132,10 +132,10 @@ export default function PedidosPage() {
             <Button
               variant="primary"
               onClick={openLoginModal}
-            >
-              Fazer Login
-            </Button>
-            </div>
+          >
+            Fazer Login
+          </Button>
+        </div>
           </div>
         </div>
         
@@ -157,10 +157,10 @@ export default function PedidosPage() {
     <>
       {/* Layout Mobile */}
       <div className="min-h-screen pb-24 md:hidden" style={{ backgroundColor: '#FAF9F4', paddingTop: '80px' }}>
-        <div className="px-4 py-6">
-          <h1 className="text-2xl font-bold text-secondary mb-6">
-            Meus Pedidos
-          </h1>
+      <div className="px-4 py-6">
+        <h1 className="text-2xl font-bold text-secondary mb-6">
+          Meus Pedidos
+        </h1>
 
         {/* Filtros de Status */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
@@ -292,7 +292,7 @@ export default function PedidosPage() {
             })}
           </div>
         )}
-        </div>
+      </div>
 
         <BottomNav />
       </div>

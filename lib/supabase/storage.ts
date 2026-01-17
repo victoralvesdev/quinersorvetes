@@ -77,6 +77,71 @@ export async function uploadImageFromBase64(
 }
 
 /**
+ * Faz upload de um arquivo de imagem para o Supabase Storage
+ * @param file - Arquivo de imagem (File object)
+ * @returns URL pública da imagem ou null em caso de erro
+ */
+export async function uploadImageFile(file: File): Promise<string | null> {
+  try {
+    // Valida o tipo do arquivo
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      console.error('[uploadImageFile] Tipo de arquivo inválido:', file.type);
+      return null;
+    }
+
+    // Valida o tamanho (máximo 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      console.error('[uploadImageFile] Arquivo muito grande:', file.size);
+      return null;
+    }
+
+    // Determina a extensão
+    const extensionMap: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'image/png': 'png',
+      'image/gif': 'gif',
+      'image/webp': 'webp',
+    };
+    const extension = extensionMap[file.type] || 'jpg';
+
+    // Gera um nome de arquivo único
+    const fileName = `product_${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
+
+    console.log('[uploadImageFile] Fazendo upload:', fileName, 'tamanho:', file.size, 'tipo:', file.type);
+
+    // Faz o upload para o Supabase Storage
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(fileName, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (error) {
+      console.error('[uploadImageFile] Erro no upload:', error);
+      return null;
+    }
+
+    console.log('[uploadImageFile] Upload concluído:', data.path);
+
+    // Obtém a URL pública da imagem
+    const { data: publicUrlData } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(data.path);
+
+    console.log('[uploadImageFile] URL pública:', publicUrlData.publicUrl);
+
+    return publicUrlData.publicUrl;
+  } catch (error) {
+    console.error('[uploadImageFile] Erro:', error);
+    return null;
+  }
+}
+
+/**
  * Deleta uma imagem do Supabase Storage
  * @param fileUrl - URL completa ou path do arquivo
  * @returns true se deletado com sucesso, false caso contrário
