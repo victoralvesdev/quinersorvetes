@@ -193,10 +193,8 @@ export default function PedidosAdminPage() {
         return <QrCode className="w-3.5 h-3.5" />;
       case "credit_card":
       case "debit_card":
-      case "cartao":
         return <CreditCard className="w-3.5 h-3.5" />;
       case "cash_on_delivery":
-      case "dinheiro":
         return <Banknote className="w-3.5 h-3.5" />;
       default:
         return <DollarSign className="w-3.5 h-3.5" />;
@@ -211,10 +209,7 @@ export default function PedidosAdminPage() {
         return "Crédito";
       case "debit_card":
         return "Débito";
-      case "cartao":
-        return "Cartão";
       case "cash_on_delivery":
-      case "dinheiro":
         return "Na Entrega";
       default:
         return method;
@@ -223,7 +218,7 @@ export default function PedidosAdminPage() {
 
   const isOrderPaid = (order: Order): boolean => {
     // Se for pagamento na entrega, só é pago após status "entregue"
-    if (order.payment_method === "cash_on_delivery" || order.payment_method === "dinheiro") {
+    if (order.payment_method === "cash_on_delivery") {
       return order.status === "entregue";
     }
     // Para PIX e cartão, considera pago (ou usar order.is_paid se disponível)
