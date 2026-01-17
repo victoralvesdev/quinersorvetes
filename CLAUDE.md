@@ -167,6 +167,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 
 # Mercado Pago
 MERCADOPAGO_ACCESS_TOKEN=your_access_token
+MERCADOPAGO_WEBHOOK_SECRET=your_webhook_secret  # Opcional, para verificação de assinatura
 
 # Evolution API (WhatsApp)
 EVOLUTION_API_URL=your_evolution_api_url
