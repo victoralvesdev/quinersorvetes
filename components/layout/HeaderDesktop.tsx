@@ -61,9 +61,10 @@ export const HeaderDesktop = ({
   ];
 
   return (
-    <header className="bg-primary-pink hidden md:block sticky top-0 z-[110] shadow-md">
-      <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center gap-6">
+    <header className="hidden md:block sticky top-0 z-[110] py-4">
+      <div className="container mx-auto px-6">
+        <div className="bg-primary-pink rounded-[10px] shadow-md px-6 py-4">
+          <div className="flex items-center gap-6">
           {/* Logo */}
           <div className="flex-shrink-0">
             <Image
@@ -122,6 +123,7 @@ export const HeaderDesktop = ({
               );
             })}
           </div>
+        </div>
         </div>
       </div>
     </header>

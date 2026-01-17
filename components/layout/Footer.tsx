@@ -46,17 +46,7 @@ export const Footer = () => {
                 </li>
                 <li>
                   <Link href="#" className="text-sm hover:opacity-70 transition-opacity" style={{ color: '#5d7184' }}>
-                    Nossas Lojas
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm hover:opacity-70 transition-opacity" style={{ color: '#5d7184' }}>
                     Contato
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm hover:opacity-70 transition-opacity" style={{ color: '#5d7184' }}>
-                    Trabalhe Conosco
                   </Link>
                 </li>
                 <li>
@@ -101,7 +91,7 @@ export const Footer = () => {
               </div>
               {/* Contato */}
               <div className="space-y-1 text-sm" style={{ color: '#5d7184' }}>
-                <p>Email: <a href="mailto:contato@quiner.com.br" className="hover:opacity-70 transition-opacity">contato@quiner.com.br</a></p>
+                <p>Email: <a href="mailto:naoresponda@quiner.com.br" className="hover:opacity-70 transition-opacity">naoresponda@quiner.com.br</a></p>
                 <p>Tel: <a href="tel:+551112345678" className="hover:opacity-70 transition-opacity">(11) 1234-5678</a></p>
               </div>
             </div>

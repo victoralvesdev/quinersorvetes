@@ -13,7 +13,7 @@ export const HeaderMobile = ({ onSearchChange }: HeaderMobileProps) => {
   };
 
   return (
-    <header className="bg-primary-pink fixed top-0 left-0 right-0 z-[110] pb-4 pt-4">
+    <header className="bg-primary-pink fixed top-0 left-0 right-0 z-[110] pb-4 pt-4 md:hidden">
       <div className="px-4">
         <div className="flex items-center gap-3">
           <div className="flex-shrink-0 pt-1">
