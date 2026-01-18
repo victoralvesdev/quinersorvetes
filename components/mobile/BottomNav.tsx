@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Home, ClipboardList, ShoppingBag, User } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useCartContext } from "@/contexts/CartContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCoupons } from "@/contexts/CouponContext";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -13,6 +14,7 @@ export const BottomNav = () => {
   const [isMounted, setIsMounted] = useState(false);
   const itemCount = useCartStore((state) => state.items.length);
   const { isAuthenticated, user } = useAuth();
+  const { couponsCount } = useCoupons();
 
   useEffect(() => {
     setIsMounted(true);
@@ -23,6 +25,19 @@ export const BottomNav = () => {
   const pathname = usePathname();
   const router = useRouter();
 
+  const handleProfileClick = useCallback(() => {
+    // Fechar carrinho se estiver aberto
+    if (isCartOpen) {
+      closeCart();
+    }
+
+    if (isAuthenticated) {
+      router.push("/perfil");
+    } else {
+      openLoginModal();
+    }
+  }, [isAuthenticated, router, openLoginModal, isCartOpen, closeCart]);
+
   const navItems = useMemo(
     () => [
       {
@@ -30,14 +45,20 @@ export const BottomNav = () => {
         label: "Início",
         path: "/",
         active: pathname === "/" && !isCartOpen,
-        onClick: () => router.push("/"),
+        onClick: () => {
+          if (isCartOpen) closeCart();
+          router.push("/");
+        },
       },
       {
         icon: ClipboardList,
         label: "Pedidos",
         path: "/pedidos",
         active: pathname === "/pedidos" && !isCartOpen,
-        onClick: () => router.push("/pedidos"),
+        onClick: () => {
+          if (isCartOpen) closeCart();
+          router.push("/pedidos");
+        },
       },
       {
         icon: ShoppingBag,
@@ -52,20 +73,21 @@ export const BottomNav = () => {
         label: isAuthenticated && user ? user.name.split(" ")[0] : "Perfil",
         path: "/perfil",
         active: pathname === "/perfil" && !isCartOpen,
-        onClick: openLoginModal,
+        badge: isMounted && isAuthenticated && couponsCount > 0 ? couponsCount : null,
+        onClick: handleProfileClick,
       },
     ],
-    [pathname, isCartOpen, itemCount, isMounted, router, openCart, openLoginModal, isAuthenticated, user]
+    [pathname, isCartOpen, itemCount, isMounted, router, openCart, closeCart, isAuthenticated, user, couponsCount, handleProfileClick]
   );
 
   const handleNavClick = (item: (typeof navItems)[0]) => {
-    if (isCartOpen && item.path && item.label !== "Perfil") {
-      closeCart();
-    }
-
+    // O onClick já cuida de fechar o carrinho quando necessário
     if (item.onClick) {
       item.onClick();
     } else if (item.path) {
+      if (isCartOpen) {
+        closeCart();
+      }
       router.push(item.path);
     }
   };

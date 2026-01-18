@@ -318,7 +318,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
       {/* Backdrop */}
       <div
         className={cn(
-          "fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300",
+          "fixed inset-0 bg-black/60 backdrop-blur-sm z-[115] transition-opacity duration-300",
           isVisible ? "opacity-100" : "opacity-0"
         )}
         onClick={onClose}
@@ -327,7 +327,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
       {/* Cart Panel */}
       <div
         className={cn(
-          "fixed right-0 top-0 bottom-0 w-full max-w-md bg-background z-[101] flex flex-col shadow-2xl",
+          "fixed right-0 top-0 bottom-0 w-full max-w-md bg-background z-[116] flex flex-col shadow-2xl",
           "transform transition-transform duration-300 ease-out",
           isVisible ? "translate-x-0" : "translate-x-full"
         )}

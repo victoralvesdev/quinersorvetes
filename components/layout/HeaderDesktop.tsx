@@ -7,6 +7,7 @@ import { useCartStore } from "@/store/cartStore";
 import { useCartContext } from "@/contexts/CartContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCoupons } from "@/contexts/CouponContext";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ export const HeaderDesktop = ({ onSearchChange }: HeaderDesktopProps) => {
   const { openCart, isCartOpen } = useCartContext();
   const { openModal: openLoginModal } = useLoginModal();
   const { isAuthenticated, user } = useAuth();
+  const { couponsCount } = useCoupons();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -30,6 +32,14 @@ export const HeaderDesktop = ({ onSearchChange }: HeaderDesktopProps) => {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onSearchChange?.(e.target.value);
+  };
+
+  const handleProfileClick = () => {
+    if (isAuthenticated) {
+      router.push("/perfil");
+    } else {
+      openLoginModal();
+    }
   };
 
   const navItems = [
@@ -55,8 +65,9 @@ export const HeaderDesktop = ({ onSearchChange }: HeaderDesktopProps) => {
     {
       icon: User,
       label: isAuthenticated && user ? user.name.split(" ")[0] : "Perfil",
-      active: false,
-      onClick: openLoginModal,
+      badge: isMounted && isAuthenticated && couponsCount > 0 ? couponsCount : null,
+      active: pathname === "/perfil" && !isCartOpen,
+      onClick: handleProfileClick,
     },
   ];
 

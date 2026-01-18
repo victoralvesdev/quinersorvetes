@@ -17,7 +17,8 @@ import {
   ChevronDown,
   LogOut,
   Menu,
-  X
+  X,
+  Tag
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/AdminContext";
@@ -27,6 +28,7 @@ const navigation = [
   { name: "Dashboard", href: "/gestao-admin", icon: Home },
   { name: "Pedidos", href: "/gestao-admin/pedidos", icon: Package },
   { name: "Produtos", href: "/gestao-admin/produtos", icon: ShoppingCart },
+  { name: "Cupons", href: "/gestao-admin/cupons", icon: Tag },
   { name: "Clientes", href: "/gestao-admin/clientes", icon: Users },
   { name: "Relatórios", href: "/gestao-admin/relatorios", icon: BarChart3 },
   { name: "Configurações", href: "/gestao-admin/configuracoes", icon: Settings },
