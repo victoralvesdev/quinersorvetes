@@ -12,6 +12,7 @@ import { AddressSelector } from "./AddressSelector";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
 import { PixPaymentScreen } from "./PixPaymentScreen";
 import { CardPaymentScreen } from "./CardPaymentScreen";
+import { CashPaymentScreen } from "./CashPaymentScreen";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/store/cartStore";
 
@@ -25,7 +26,12 @@ interface CheckoutModalProps {
   }) => Promise<void>;
 }
 
-type CheckoutStep = "address" | "payment" | "pix" | "card";
+type CheckoutStep = "address" | "payment" | "pix" | "card" | "cash";
+
+interface ChangeData {
+  needsChange: boolean;
+  changeFor?: number;
+}
 
 export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProps) {
   const { user, isAuthenticated } = useAuth();
@@ -39,6 +45,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
   const [pixPaymentId, setPixPaymentId] = useState<string | undefined>();
   const [cardPaymentId, setCardPaymentId] = useState<string | undefined>();
   const [isPaid, setIsPaid] = useState(false);
+  const [changeData, setChangeData] = useState<ChangeData | undefined>();
 
   const getTotal = useCartStore((state) => state.getTotal());
 
@@ -80,6 +87,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
       setPixPaymentId(undefined);
       setCardPaymentId(undefined);
       setIsPaid(false);
+      setChangeData(undefined);
     }
   }, [isOpen]);
 
@@ -145,12 +153,17 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
       }
     }
 
-    const checkoutData = {
+    const checkoutData: any = {
       addressId: selectedAddressId,
       address: addressData,
       paymentMethod,
       isPaid: paymentCompleted ?? isPaid,
     };
+
+    // Incluir dados de troco se for pagamento na entrega
+    if (changeData) {
+      checkoutData.changeData = changeData;
+    }
 
     await onComplete(checkoutData);
   };
@@ -162,8 +175,8 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
         style={{ backgroundColor: "#FAF9F4" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header - Não mostrar quando estiver na tela PIX ou Cartão */}
-        {step !== "pix" && step !== "card" && (
+        {/* Header - Não mostrar quando estiver na tela PIX, Cartão ou Dinheiro */}
+        {step !== "pix" && step !== "card" && step !== "cash" && (
           <div className="sticky top-0 border-b p-4 flex items-center justify-between z-10" style={{ backgroundColor: "#FAF9F4" }}>
             <h2 className="text-xl font-bold text-secondary">
               {step === "address" ? "Endereço de Entrega" : "Forma de Pagamento"}
@@ -201,6 +214,18 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
                 handleFinishCheckout(true);
               }}
               paymentType={paymentMethod as 'credit_card' | 'debit_card'}
+            />
+          ) : step === "cash" ? (
+            <CashPaymentScreen
+              amount={getTotal}
+              onBack={() => {
+                setStep("payment");
+                setChangeData(undefined);
+              }}
+              onContinue={(data) => {
+                setChangeData(data);
+                handleFinishCheckout();
+              }}
             />
           ) : step === "address" ? (
             <>
@@ -277,6 +302,17 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
                     disabled={!paymentMethod || isLoading}
                   >
                     {isLoading ? "Carregando..." : "Continuar Pagamento"}
+                  </Button>
+                ) : paymentMethod === "cash_on_delivery" ? (
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={() => {
+                      setStep("cash");
+                    }}
+                    disabled={!paymentMethod || isLoading}
+                  >
+                    {isLoading ? "Carregando..." : "Continuar"}
                   </Button>
                 ) : (
                   <Button

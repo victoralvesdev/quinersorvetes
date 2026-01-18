@@ -162,7 +162,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+      className="fixed inset-0 z-[120] flex items-end md:items-center justify-center"
       onClick={onClose}
     >
       {/* Backdrop */}
@@ -305,7 +305,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         </div>
 
         {/* Footer - Fixed */}
-        <div className="flex-shrink-0 border-t border-gray-100 bg-white p-4 md:p-5 space-y-4">
+        <div className="flex-shrink-0 border-t border-gray-100 bg-white p-4 pb-8 md:p-5 md:pb-5 space-y-4 safe-area-bottom">
           {/* Quantity Selector */}
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-secondary">Quantidade</span>
