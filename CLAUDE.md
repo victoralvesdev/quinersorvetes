@@ -37,12 +37,15 @@ npm run lint       # Run linter
 - `conversation-state.ts` - WhatsApp conversation flow state
 - `storage.ts` - Image upload to Supabase Storage
 
-**Database Tables**: `users`, `addresses`, `orders`, `products`, `categories`, `conversation_state`
+**Database Tables**: `users`, `addresses`, `orders`, `products`, `categories`, `conversation_state`, `verification_codes`
 
 ### API Routes
 
 ```
 app/api/
+├── auth/
+│   ├── send-code/route.ts            # Send verification code via WhatsApp
+│   └── verify-code/route.ts          # Verify the 6-digit code
 ├── mercadopago/
 │   ├── create-pix/route.ts           # PIX payment creation via Mercado Pago REST API
 │   ├── create-card-payment/route.ts  # Card payment creation
@@ -55,6 +58,15 @@ app/api/
     ├── delivery-reminder/route.ts    # Delivery reminder notifications
     └── webhook/route.ts              # Evolution API webhook for WhatsApp bot
 ```
+
+### Authentication Flow
+
+**WhatsApp Verification**:
+1. User enters phone number on login/register form
+2. API `/api/auth/send-code` generates 6-digit code and sends via WhatsApp
+3. Code stored in `verification_codes` table with 10-minute expiration
+4. User enters code, API `/api/auth/verify-code` validates
+5. On success, login/registration completes
 
 ### External Integrations
 
@@ -182,7 +194,7 @@ NEXT_PUBLIC_ADMIN_PASSWORD=your_admin_password
 
 1. **localStorage SSR**: Auth relies on localStorage - use `typeof window !== "undefined"` checks
 2. **Portuguese language**: All UI text and strings are in Portuguese (Brazil)
-3. **Phone-based auth**: No email/password - uses phone numbers as identifiers
+3. **Phone-based auth**: Uses phone numbers with WhatsApp verification codes (no email/password)
 
 See `SUGESTOES.md` for a detailed analysis of remaining issues including:
 - Webhook signature verification

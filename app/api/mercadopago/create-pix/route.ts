@@ -33,12 +33,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!payerCpf) {
-      return NextResponse.json(
-        { error: 'CPF do pagador é obrigatório' },
-        { status: 400 }
-      );
-    }
+    // CPF padrão para pagamentos PIX (necessário para API do Mercado Pago)
+    const defaultCpf = '12345678909';
 
     // Criar pagamento PIX usando API REST direta
     const paymentData: any = {
@@ -51,7 +47,7 @@ export async function POST(request: NextRequest) {
         last_name: payerName?.split(' ').slice(1).join(' ') || 'Quiner',
         identification: {
           type: 'CPF',
-          number: payerCpf.replace(/\D/g, ''),
+          number: payerCpf ? payerCpf.replace(/\D/g, '') : defaultCpf,
         },
       },
     };

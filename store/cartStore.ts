@@ -20,19 +20,39 @@ export const useCartStore = create<CartStore>()(
       
       addItem: (product, quantity = 1) => {
         const state = get();
-        const existingItem = state.items.find(
-          (item) => item.product.id === product.id
-        );
+        // Se o produto tem variações selecionadas, criar uma chave única
+        const productKey = (product as any).selectedVariations 
+          ? `${product.id}_${JSON.stringify((product as any).selectedVariations)}`
+          : product.id;
+        
+        const additionalPrice = (product as any).additionalPrice || 0;
+        const selectedVariations = (product as any).selectedVariations || {};
+
+        const existingItem = state.items.find((item) => {
+          if (item.product.id !== product.id) return false;
+          // Comparar variações selecionadas
+          const itemVariations = JSON.stringify(item.selectedVariations || {});
+          const newVariations = JSON.stringify(selectedVariations);
+          return itemVariations === newVariations;
+        });
 
         let newItems;
         if (existingItem) {
-          newItems = state.items.map((item) =>
-            item.product.id === product.id
-              ? { ...item, quantity: item.quantity + quantity }
-              : item
-          );
+          newItems = state.items.map((item) => {
+            const itemVariations = JSON.stringify(item.selectedVariations || {});
+            const newVariations = JSON.stringify(selectedVariations);
+            if (item.product.id === product.id && itemVariations === newVariations) {
+              return { ...item, quantity: item.quantity + quantity };
+            }
+            return item;
+          });
         } else {
-          newItems = [...state.items, { product, quantity }];
+          newItems = [...state.items, { 
+            product, 
+            quantity,
+            selectedVariations: Object.keys(selectedVariations).length > 0 ? selectedVariations : undefined,
+            additionalPrice: additionalPrice > 0 ? additionalPrice : undefined,
+          }];
         }
 
         set({ items: newItems });
@@ -67,7 +87,12 @@ export const useCartStore = create<CartStore>()(
 
       getTotal: () => {
         return get().items.reduce(
-          (total, item) => total + item.product.price * item.quantity,
+          (total, item) => {
+            const basePrice = item.product.price;
+            const additionalPrice = item.additionalPrice || 0;
+            const itemPrice = basePrice + additionalPrice;
+            return total + itemPrice * item.quantity;
+          },
           0
         );
       },

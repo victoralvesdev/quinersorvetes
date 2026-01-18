@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/AdminContext";
+import { getAllOrders } from "@/lib/supabase/orders";
 
 const navigation = [
   { name: "Dashboard", href: "/gestao-admin", icon: Home },
@@ -93,9 +94,27 @@ function AdminDropdown({ logout }: { logout: () => void }) {
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { logout } = useAdmin();
-  const [pendingOrders, setPendingOrders] = useState(3);
+  const [pendingOrders, setPendingOrders] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
+
+  // Busca contagem de pedidos novos
+  const fetchPendingOrders = async () => {
+    try {
+      const orders = await getAllOrders();
+      const newOrders = orders.filter(order => order.status === "novo");
+      setPendingOrders(newOrders.length);
+    } catch (error) {
+      console.error("Erro ao buscar pedidos:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingOrders();
+    // Atualiza a cada 30 segundos
+    const interval = setInterval(fetchPendingOrders, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {

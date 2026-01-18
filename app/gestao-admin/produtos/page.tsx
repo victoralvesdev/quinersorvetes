@@ -21,14 +21,19 @@ import {
   RefreshCw,
   MoreVertical,
   Eye,
-  EyeOff
+  EyeOff,
+  ChevronDown,
+  ChevronUp,
+  Lock,
+  Coins
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
-import { getProducts, createProduct, updateProduct, deleteProduct } from "@/lib/supabase/products";
+import { getProducts, createProduct, updateProduct, deleteProduct, getProductById } from "@/lib/supabase/products";
 import { getCategories } from "@/lib/supabase/categories";
-import { Product, Category } from "@/types/product";
+import { Product, Category, ProductVariation } from "@/types/product";
 import { useToast } from "@/components/ui/Toast";
 import { uploadImageFile } from "@/lib/supabase/storage";
+import { getProductVariations, saveProductVariations } from "@/lib/supabase/variations";
 
 function ProductCardSkeleton() {
   return (
@@ -86,6 +91,9 @@ export default function ProdutosPage() {
     image: "",
     available: true,
   });
+
+  // Variations state
+  const [variations, setVariations] = useState<Omit<ProductVariation, 'id'>[]>([]);
 
   useEffect(() => {
     loadData();
@@ -218,7 +226,7 @@ export default function ProdutosPage() {
     }
   };
 
-  const handleOpenForm = (product?: Product) => {
+  const handleOpenForm = async (product?: Product) => {
     if (product) {
       setEditingProduct(product);
       setFormData({
@@ -229,6 +237,19 @@ export default function ProdutosPage() {
         image: product.image || "",
         available: product.available,
       });
+      // Carregar variações do produto
+      const productVariations = await getProductVariations(product.id);
+      setVariations(productVariations.map(v => ({
+        name: v.name,
+        required: v.required,
+        has_price: v.has_price,
+        display_order: v.display_order,
+        items: v.items.map(item => ({
+          name: item.name,
+          price: item.price,
+          display_order: item.display_order,
+        })),
+      })));
     } else {
       setEditingProduct(null);
       setFormData({
@@ -239,6 +260,7 @@ export default function ProdutosPage() {
         image: "",
         available: true,
       });
+      setVariations([]);
     }
     setIsFormOpen(true);
   };
@@ -254,6 +276,7 @@ export default function ProdutosPage() {
       image: "",
       available: true,
     });
+    setVariations([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -261,6 +284,7 @@ export default function ProdutosPage() {
     setIsSaving(true);
     try {
       const priceValue = parsePriceFromBRL(formData.price);
+      let productId: string | null = null;
 
       if (editingProduct) {
         const updated = await updateProduct(editingProduct.id, {
@@ -272,9 +296,10 @@ export default function ProdutosPage() {
           available: formData.available,
         });
         if (updated) {
-          showToast("Produto atualizado com sucesso!", "success");
-          loadData();
-          handleCloseForm();
+          productId = editingProduct.id;
+        } else {
+          showToast("Erro ao atualizar produto", "error");
+          return;
         }
       } else {
         const created = await createProduct({
@@ -286,17 +311,79 @@ export default function ProdutosPage() {
           available: formData.available,
         });
         if (created) {
-          showToast("Produto criado com sucesso!", "success");
-          loadData();
-          handleCloseForm();
+          productId = created.id;
+        } else {
+          showToast("Erro ao criar produto", "error");
+          return;
         }
       }
+
+      // Salvar variações
+      if (productId) {
+        const variationsSaved = await saveProductVariations(productId, variations);
+        if (!variationsSaved) {
+          showToast("Produto salvo, mas houve erro ao salvar variações", "error");
+        }
+      }
+
+      showToast(editingProduct ? "Produto atualizado com sucesso!" : "Produto criado com sucesso!", "success");
+      loadData();
+      handleCloseForm();
     } catch (error) {
       console.error("Erro ao salvar produto:", error);
       showToast("Erro ao salvar produto", "error");
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Funções para gerenciar variações
+  const addVariation = () => {
+    setVariations([...variations, {
+      name: "",
+      required: false,
+      has_price: false,
+      display_order: variations.length,
+      items: [],
+    }]);
+  };
+
+  const removeVariation = (index: number) => {
+    setVariations(variations.filter((_, i) => i !== index));
+  };
+
+  const updateVariation = (index: number, field: keyof Omit<ProductVariation, 'id' | 'items'>, value: boolean | string | number) => {
+    const updated = [...variations];
+    updated[index] = { ...updated[index], [field]: value };
+    setVariations(updated);
+  };
+
+  const addVariationItem = (variationIndex: number) => {
+    const updated = [...variations];
+    updated[variationIndex].items = [
+      ...updated[variationIndex].items,
+      {
+        name: "",
+        price: 0,
+        display_order: updated[variationIndex].items.length,
+      },
+    ];
+    setVariations(updated);
+  };
+
+  const removeVariationItem = (variationIndex: number, itemIndex: number) => {
+    const updated = [...variations];
+    updated[variationIndex].items = updated[variationIndex].items.filter((_, i) => i !== itemIndex);
+    setVariations(updated);
+  };
+
+  const updateVariationItem = (variationIndex: number, itemIndex: number, field: 'name' | 'price' | 'display_order', value: string | number) => {
+    const updated = [...variations];
+    updated[variationIndex].items[itemIndex] = {
+      ...updated[variationIndex].items[itemIndex],
+      [field]: value,
+    };
+    setVariations(updated);
   };
 
   const handleDelete = async (id: string) => {
@@ -931,6 +1018,167 @@ export default function ProdutosPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Variations Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-semibold text-secondary-dark">
+                    Subcategorias / Variações
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addVariation}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Adicionar Subcategoria
+                  </button>
+                </div>
+
+                {variations.length === 0 ? (
+                  <div className="p-6 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-center">
+                    <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-secondary/50">Nenhuma subcategoria adicionada</p>
+                    <p className="text-xs text-secondary/40 mt-1">Ex: Cobertura, Complemento, etc.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {variations.map((variation, vIndex) => (
+                      <div key={vIndex} className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+                        {/* Variation Header */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 space-y-2">
+                            <input
+                              type="text"
+                              value={variation.name}
+                              onChange={(e) => updateVariation(vIndex, 'name', e.target.value)}
+                              placeholder="Ex: Cobertura, Complemento..."
+                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10 text-sm font-medium"
+                            />
+                            <div className="flex items-center gap-3">
+                              {/* Obrigatória Toggle */}
+                              <button
+                                type="button"
+                                onClick={() => updateVariation(vIndex, 'required', !variation.required)}
+                                className={cn(
+                                  "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 border",
+                                  variation.required
+                                    ? "bg-amber-50 border-amber-200 text-amber-700"
+                                    : "bg-gray-100 border-gray-200 text-secondary/60 hover:bg-gray-200"
+                                )}
+                              >
+                                <div className={cn(
+                                  "relative w-8 h-4 rounded-full transition-colors duration-200",
+                                  variation.required ? "bg-amber-500" : "bg-gray-300"
+                                )}>
+                                  <div className={cn(
+                                    "absolute top-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200",
+                                    variation.required ? "translate-x-4" : "translate-x-0.5"
+                                  )} />
+                                </div>
+                                <Lock className={cn(
+                                  "w-3.5 h-3.5 transition-colors",
+                                  variation.required ? "text-amber-600" : "text-secondary/40"
+                                )} />
+                                <span className="text-xs font-medium">Obrigatória</span>
+                              </button>
+
+                              {/* Tem Preço Adicional Toggle */}
+                              <button
+                                type="button"
+                                onClick={() => updateVariation(vIndex, 'has_price', !variation.has_price)}
+                                className={cn(
+                                  "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 border",
+                                  variation.has_price
+                                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                                    : "bg-gray-100 border-gray-200 text-secondary/60 hover:bg-gray-200"
+                                )}
+                              >
+                                <div className={cn(
+                                  "relative w-8 h-4 rounded-full transition-colors duration-200",
+                                  variation.has_price ? "bg-emerald-500" : "bg-gray-300"
+                                )}>
+                                  <div className={cn(
+                                    "absolute top-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200",
+                                    variation.has_price ? "translate-x-4" : "translate-x-0.5"
+                                  )} />
+                                </div>
+                                <Coins className={cn(
+                                  "w-3.5 h-3.5 transition-colors",
+                                  variation.has_price ? "text-emerald-600" : "text-secondary/40"
+                                )} />
+                                <span className="text-xs font-medium">Tem preço</span>
+                              </button>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeVariation(vIndex)}
+                            className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </button>
+                        </div>
+
+                        {/* Variation Items */}
+                        <div className="pl-2 border-l-2 border-gray-200 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium text-secondary/70">Itens:</p>
+                            <button
+                              type="button"
+                              onClick={() => addVariationItem(vIndex)}
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-primary hover:bg-primary/10 rounded transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                              Adicionar Item
+                            </button>
+                          </div>
+                          {variation.items.length === 0 ? (
+                            <p className="text-xs text-secondary/50 italic">Nenhum item adicionado</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {variation.items.map((item, iIndex) => (
+                                <div key={iIndex} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200">
+                                  <input
+                                    type="text"
+                                    value={item.name}
+                                    onChange={(e) => updateVariationItem(vIndex, iIndex, 'name', e.target.value)}
+                                    placeholder="Ex: Morango, Chocolate..."
+                                    className="flex-1 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded focus:outline-none focus:border-primary/30 text-xs"
+                                  />
+                                  {variation.has_price && (
+                                    <div className="relative w-24">
+                                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-secondary/50">R$</span>
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={formatPriceToBRL(item.price)}
+                                        onChange={(e) => {
+                                          const price = parsePriceFromBRL(e.target.value);
+                                          updateVariationItem(vIndex, iIndex, 'price', price);
+                                        }}
+                                        className="w-full pl-7 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded focus:outline-none focus:border-primary/30 text-xs"
+                                        placeholder="0,00"
+                                      />
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeVariationItem(vIndex, iIndex)}
+                                    className="p-1 hover:bg-red-50 rounded transition-colors"
+                                  >
+                                    <X className="w-3.5 h-3.5 text-red-500" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Availability Toggle */}

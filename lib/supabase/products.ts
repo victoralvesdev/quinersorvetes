@@ -1,10 +1,12 @@
 import { supabase } from './client';
 import { Product } from '@/types/product';
+import { getProductVariations } from './variations';
 
 /**
- * Busca todos os produtos com nome da categoria
+ * Busca todos os produtos com nome da categoria e flag de variações
  */
 export async function getProducts(): Promise<Product[]> {
+  // Buscar produtos com categorias
   const { data, error } = await supabase
     .from('products')
     .select(`
@@ -21,8 +23,18 @@ export async function getProducts(): Promise<Product[]> {
     return [];
   }
 
+  // Buscar IDs de produtos que têm variações
+  const { data: variationsData } = await supabase
+    .from('product_variations')
+    .select('product_id');
+
+  // Criar um Set com IDs de produtos que têm variações
+  const productsWithVariations = new Set(
+    (variationsData || []).map((v) => v.product_id)
+  );
+
   // Mapeia os dados para o formato esperado pelo frontend
-  return (data || []).map((product) => ({
+  const products = (data || []).map((product) => ({
     id: product.id,
     name: product.name,
     description: product.description,
@@ -32,7 +44,10 @@ export async function getProducts(): Promise<Product[]> {
     categoryName: product.categories?.name || '', // Nome da categoria para exibição
     available: product.available,
     featured: product.featured,
+    hasVariations: productsWithVariations.has(product.id),
   }));
+
+  return products;
 }
 
 /**
@@ -54,12 +69,18 @@ export async function getProductsByCategory(categoryId: string): Promise<Product
 }
 
 /**
- * Busca um produto pelo ID
+ * Busca um produto pelo ID com suas variações
  */
 export async function getProductById(id: string): Promise<Product | null> {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select(`
+      *,
+      categories (
+        id,
+        name
+      )
+    `)
     .eq('id', id)
     .single();
 
@@ -68,7 +89,20 @@ export async function getProductById(id: string): Promise<Product | null> {
     return null;
   }
 
-  return data;
+  const variations = await getProductVariations(id);
+
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    price: Number(data.price),
+    image: data.image || '',
+    category: data.category_id,
+    categoryName: data.categories?.name || '',
+    available: data.available,
+    featured: data.featured,
+    variations: variations.length > 0 ? variations : undefined,
+  };
 }
 
 /**

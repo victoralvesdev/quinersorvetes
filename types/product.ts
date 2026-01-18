@@ -1,3 +1,19 @@
+export interface ProductVariationItem {
+  id?: string;
+  name: string;
+  price: number;
+  display_order: number;
+}
+
+export interface ProductVariation {
+  id?: string;
+  name: string;
+  required: boolean;
+  has_price: boolean;
+  display_order: number;
+  items: ProductVariationItem[];
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -8,6 +24,8 @@ export interface Product {
   categoryName?: string; // Nome da categoria para exibição
   available: boolean;
   featured?: boolean;
+  hasVariations?: boolean; // Indica se o produto tem variações (para listagem)
+  variations?: ProductVariation[]; // Subcategorias e seus itens
   promotion?: {
     discount: number;
     label: string;
@@ -23,6 +41,8 @@ export interface Category {
 export interface CartItem {
   product: Product;
   quantity: number;
+  selectedVariations?: Record<string, string>; // variationId -> itemId
+  additionalPrice?: number; // Preço adicional das variações selecionadas
 }
 
 export interface Order {
