@@ -66,3 +66,5 @@ Como o sistema de admin não usa autenticação Supabase (usa localStorage), as 
 
 Em produção, considere implementar autenticação Supabase com roles para melhor segurança.
 
+
+

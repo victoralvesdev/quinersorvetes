@@ -306,22 +306,22 @@ export default function CuponsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100/50 shadow-sm p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4">
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100/50 shadow-sm p-3 sm:p-4 mb-6">
+        <div className="flex flex-col gap-3 sm:gap-4">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-secondary/40" />
+            <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-secondary/40" />
             <input
               type="text"
               placeholder="Buscar por código ou descrição..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3 text-sm border border-transparent focus:outline-none focus:border-primary/30 focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all"
+              className="w-full bg-gray-50 rounded-xl pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3 text-sm border border-transparent focus:outline-none focus:border-primary/30 focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all"
             />
           </div>
 
           {/* Status Filter */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
             {[
               { value: "all", label: "Todos" },
               { value: "active", label: "Ativos" },
@@ -332,7 +332,7 @@ export default function CuponsPage() {
                 key={filter.value}
                 onClick={() => setFilterStatus(filter.value)}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-sm font-medium transition-colors",
+                  "px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0",
                   filterStatus === filter.value
                     ? "bg-primary text-white"
                     : "bg-gray-50 text-secondary/70 hover:bg-gray-100"
@@ -533,10 +533,10 @@ export default function CuponsPage() {
 
       {/* Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-100 p-6 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-white border-b border-gray-100 p-4 sm:p-6 flex items-center justify-between z-10">
               <div>
                 <h2 className="text-xl font-bold text-secondary-dark">
                   {editingCoupon ? "Editar Cupom" : "Novo Cupom"}
@@ -556,7 +556,7 @@ export default function CuponsPage() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Code */}
               <div>
                 <label className="block text-sm font-medium text-secondary-dark mb-2">
@@ -596,10 +596,10 @@ export default function CuponsPage() {
 
               {/* Discount Type */}
               <div>
-                <label className="block text-sm font-medium text-secondary-dark mb-2">
+                <label className="block text-sm font-medium text-secondary-dark mb-3">
                   Tipo de Desconto *
                 </label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
                     {
                       value: "percentage",
@@ -629,7 +629,7 @@ export default function CuponsPage() {
                           })
                         }
                         className={cn(
-                          "p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2",
+                          "p-4 sm:p-5 rounded-xl border-2 transition-all flex flex-col items-center gap-2 sm:gap-3 min-h-[100px]",
                           formData.discount_type === type.value
                             ? "border-primary bg-primary/5"
                             : "border-gray-200 bg-white hover:border-gray-300"
@@ -637,7 +637,7 @@ export default function CuponsPage() {
                       >
                         <Icon
                           className={cn(
-                            "w-6 h-6",
+                            "w-7 h-7 sm:w-8 sm:h-8",
                             formData.discount_type === type.value
                               ? "text-primary"
                               : "text-secondary/40"
@@ -645,7 +645,7 @@ export default function CuponsPage() {
                         />
                         <span
                           className={cn(
-                            "text-sm font-medium",
+                            "text-sm font-medium text-center",
                             formData.discount_type === type.value
                               ? "text-primary"
                               : "text-secondary/70"

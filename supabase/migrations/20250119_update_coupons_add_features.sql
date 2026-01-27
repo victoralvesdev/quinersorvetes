@@ -29,3 +29,5 @@ COMMENT ON COLUMN coupons.discount_type IS 'Tipo de desconto: percentage (%), fi
 COMMENT ON COLUMN coupons.discount_value IS 'Valor do desconto (obrigatório para percentage e fixed, NULL para free_shipping)';
 COMMENT ON COLUMN coupons.first_purchase_only IS 'Se true, o cupom só pode ser usado na primeira compra do usuário';
 
+
+

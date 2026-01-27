@@ -22,6 +22,7 @@ import { useCartContext } from "@/contexts/CartContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { getUserOrders, Order } from "@/lib/supabase/orders";
+import { useToast } from "@/components/ui/Toast";
 
 const statusConfig = {
   novo: {
@@ -160,10 +161,29 @@ function ProgressSteps({ currentStep, isCanceled }: { currentStep: number; isCan
   );
 }
 
-function OrderCard({ order, formatDate }: { order: Order; formatDate: (date: Date) => string }) {
+function OrderCard({
+  order,
+  formatDate,
+  onConfirmDelivery
+}: {
+  order: Order;
+  formatDate: (date: Date) => string;
+  onConfirmDelivery?: (orderId: string) => Promise<void>;
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const status = statusConfig[order.status];
   const StatusIcon = status.icon;
+
+  const handleConfirmDelivery = async () => {
+    if (!onConfirmDelivery) return;
+    setIsConfirming(true);
+    try {
+      await onConfirmDelivery(order.id);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
   return (
     <div
@@ -301,7 +321,7 @@ function OrderCard({ order, formatDate }: { order: Order; formatDate: (date: Dat
             </div>
           )}
 
-          {/* Reorder Button */}
+          {/* Reorder Button (inside expanded) */}
           {order.status === "entregue" && (
             <button
               onClick={() => alert("Funcionalidade de reordenar em breve!")}
@@ -312,6 +332,27 @@ function OrderCard({ order, formatDate }: { order: Order; formatDate: (date: Dat
             </button>
           )}
         </div>
+
+        {/* Confirm Delivery Button - Always visible when status is "saiu_entrega" */}
+        {order.status === "saiu_entrega" && onConfirmDelivery && (
+          <button
+            onClick={handleConfirmDelivery}
+            disabled={isConfirming}
+            className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/25 transition-all duration-200 disabled:opacity-70"
+          >
+            {isConfirming ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Confirmando...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                Confirmar Entrega
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -350,6 +391,7 @@ export default function PedidosPage() {
   const { user, isAuthenticated } = useAuth();
   const { isCartOpen, closeCart } = useCartContext();
   const { isOpen: isLoginOpen, closeModal: closeLoginModal, openModal: openLoginModal } = useLoginModal();
+  const { showToast } = useToast();
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -386,6 +428,36 @@ export default function PedidosPage() {
       console.error("Erro ao atualizar pedidos:", error);
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const confirmDelivery = async (orderId: string) => {
+    try {
+      const response = await fetch("/api/orders/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          status: "entregue",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao confirmar entrega");
+      }
+
+      showToast("Entrega confirmada com sucesso!", "success");
+
+      // Atualizar lista de pedidos
+      setOrders(prev =>
+        prev.map(order =>
+          order.id === orderId ? { ...order, status: "entregue" as const } : order
+        )
+      );
+    } catch (error) {
+      console.error("Erro ao confirmar entrega:", error);
+      showToast("Erro ao confirmar entrega", "error");
+      throw error;
     }
   };
 
@@ -474,7 +546,7 @@ export default function PedidosPage() {
           ) : (
             <div className="px-4 space-y-4">
               {filteredOrders.map((order) => (
-                <OrderCard key={order.id} order={order} formatDate={formatDate} />
+                <OrderCard key={order.id} order={order} formatDate={formatDate} onConfirmDelivery={confirmDelivery} />
               ))}
             </div>
           )}
@@ -544,7 +616,7 @@ export default function PedidosPage() {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} formatDate={formatDate} />
+                    <OrderCard key={order.id} order={order} formatDate={formatDate} onConfirmDelivery={confirmDelivery} />
                   ))}
                 </div>
               )}

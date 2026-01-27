@@ -18,7 +18,8 @@ import {
   QrCode,
   DollarSign,
   RefreshCw,
-  Filter
+  Filter,
+  Printer
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { getAllOrders, Order } from "@/lib/supabase/orders";
@@ -187,6 +188,250 @@ export default function PedidosAdminPage() {
     }).format(new Date(dateString));
   };
 
+  const formatDateForPrint = (dateString: string) => {
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(dateString));
+  };
+
+  const handlePrintOrder = (order: Order) => {
+    const user = (order as any).users;
+    const printWindow = window.open("", "_blank");
+    
+    if (!printWindow) {
+      showToast("Erro ao abrir janela de impressão", "error");
+      return;
+    }
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Nota do Pedido #${order.id.slice(0, 8).toUpperCase()}</title>
+          <style>
+            @media print {
+              @page {
+                margin: 10mm;
+                size: A4;
+              }
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+              max-width: 80mm;
+              margin: 0 auto;
+              background: white;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #a36e6c;
+              padding-bottom: 15px;
+              margin-bottom: 20px;
+            }
+            .header h1 {
+              color: #a36e6c;
+              font-size: 24px;
+              margin-bottom: 5px;
+            }
+            .header p {
+              color: #666;
+              font-size: 12px;
+            }
+            .order-info {
+              margin-bottom: 20px;
+            }
+            .order-info h2 {
+              color: #333;
+              font-size: 18px;
+              margin-bottom: 10px;
+              border-bottom: 1px solid #eee;
+              padding-bottom: 5px;
+            }
+            .info-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 8px;
+              font-size: 13px;
+            }
+            .info-label {
+              color: #666;
+              font-weight: bold;
+            }
+            .info-value {
+              color: #333;
+            }
+            .items {
+              margin: 20px 0;
+            }
+            .items h3 {
+              color: #333;
+              font-size: 16px;
+              margin-bottom: 10px;
+              border-bottom: 1px solid #eee;
+              padding-bottom: 5px;
+            }
+            .item {
+              display: flex;
+              justify-content: space-between;
+              padding: 8px 0;
+              border-bottom: 1px dashed #ddd;
+              font-size: 12px;
+            }
+            .item-name {
+              flex: 1;
+              color: #333;
+            }
+            .item-qty {
+              margin: 0 10px;
+              color: #666;
+            }
+            .item-price {
+              color: #333;
+              font-weight: bold;
+            }
+            .total {
+              margin-top: 20px;
+              padding-top: 15px;
+              border-top: 2px solid #a36e6c;
+            }
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 16px;
+              font-weight: bold;
+              color: #a36e6c;
+              margin-top: 10px;
+            }
+            .address {
+              background: #f9f9f9;
+              padding: 10px;
+              border-radius: 5px;
+              margin-top: 15px;
+              font-size: 12px;
+              line-height: 1.6;
+            }
+            .footer {
+              margin-top: 30px;
+              text-align: center;
+              font-size: 11px;
+              color: #999;
+              border-top: 1px solid #eee;
+              padding-top: 15px;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 5px 10px;
+              border-radius: 5px;
+              font-size: 12px;
+              font-weight: bold;
+              margin-top: 5px;
+            }
+            .status-novo { background: #fef3c7; color: #92400e; }
+            .status-preparando { background: #dbeafe; color: #1e40af; }
+            .status-saiu_entrega { background: #d1fae5; color: #065f46; }
+            .status-entregue { background: #f3f4f6; color: #374151; }
+            .status-cancelado { background: #fee2e2; color: #991b1b; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Quiner Sorvetes</h1>
+            <p>Nota do Pedido</p>
+          </div>
+
+          <div class="order-info">
+            <h2>Informações do Pedido</h2>
+            <div class="info-row">
+              <span class="info-label">Pedido #:</span>
+              <span class="info-value">${order.id.slice(0, 8).toUpperCase()}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Data:</span>
+              <span class="info-value">${formatDateForPrint(order.created_at)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Status:</span>
+              <span class="info-value">
+                <span class="status-badge status-${order.status}">${statusConfig[order.status].fullLabel}</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="order-info">
+            <h2>Cliente</h2>
+            <div class="info-row">
+              <span class="info-label">Nome:</span>
+              <span class="info-value">${user?.name || "Cliente"}</span>
+            </div>
+            ${user?.phone ? `
+            <div class="info-row">
+              <span class="info-label">Telefone:</span>
+              <span class="info-value">${user.phone}</span>
+            </div>
+            ` : ''}
+          </div>
+
+          ${order.address_data ? `
+          <div class="address">
+            <strong>Endereço de Entrega:</strong><br>
+            ${order.address_data.street}, ${order.address_data.number}<br>
+            ${order.address_data.complement ? order.address_data.complement + '<br>' : ''}
+            ${order.address_data.neighborhood} - ${order.address_data.city}<br>
+            ${order.address_data.reference ? '<br><strong>Referência:</strong> ' + order.address_data.reference : ''}
+          </div>
+          ` : ''}
+
+          <div class="items">
+            <h3>Itens do Pedido</h3>
+            ${order.items.map((item) => `
+              <div class="item">
+                <span class="item-name">${item.product_name}</span>
+                <span class="item-qty">${item.quantity}x</span>
+                <span class="item-price">${formatCurrency(item.price * item.quantity)}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="total">
+            <div class="info-row">
+              <span class="info-label">Forma de Pagamento:</span>
+              <span class="info-value">${getPaymentLabel(order.payment_method)}</span>
+            </div>
+            <div class="total-row">
+              <span>TOTAL:</span>
+              <span>${formatCurrency(order.total)}</span>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>Obrigado pela sua preferência!</p>
+            <p>Pedido gerado em ${new Date().toLocaleString('pt-BR')}</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Aguardar o conteúdo carregar antes de imprimir
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+    };
+  };
+
   const getPaymentIcon = (method: string) => {
     switch (method) {
       case "pix":
@@ -353,17 +598,27 @@ export default function PedidosAdminPage() {
             <span className="text-lg font-bold text-primary">{formatCurrency(order.total)}</span>
           </div>
 
-          {/* Expand Button */}
-          <button
-            onClick={() => toggleExpand(order.id)}
-            className="w-full flex items-center justify-center gap-2 py-2 text-xs text-secondary/60 hover:text-secondary hover:bg-gray-50 rounded-lg transition-colors"
-          >
-            <span>{isExpanded ? "Ocultar detalhes" : "Ver detalhes"}</span>
-            <ChevronDown className={cn(
-              "w-4 h-4 transition-transform duration-200",
-              isExpanded && "rotate-180"
-            )} />
-          </button>
+          {/* Action Buttons Row */}
+          <div className="flex gap-2 mb-2">
+            <button
+              onClick={() => handlePrintOrder(order)}
+              className="flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs text-secondary/70 hover:text-secondary hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
+              title="Imprimir notinha"
+            >
+              <Printer className="w-4 h-4" />
+              <span className="hidden sm:inline">Imprimir</span>
+            </button>
+            <button
+              onClick={() => toggleExpand(order.id)}
+              className="flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs text-secondary/60 hover:text-secondary hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
+            >
+              <span>{isExpanded ? "Ocultar" : "Detalhes"}</span>
+              <ChevronDown className={cn(
+                "w-4 h-4 transition-transform duration-200",
+                isExpanded && "rotate-180"
+              )} />
+            </button>
+          </div>
 
           {/* Expanded Content */}
           {isExpanded && (
