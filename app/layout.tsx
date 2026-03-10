@@ -6,8 +6,8 @@ import { FooterWrapper } from "@/components/layout/FooterWrapper";
 import { AppProviders } from "@/components/providers/AppProviders";
 
 export const metadata: Metadata = {
-  title: "QuinerApp - Gestão de Sorveteria",
-  description: "Sistema completo de gestão para delivery de sorveteria",
+  title: "Quiner",
+  description: "Quiner Sorvetes",
   icons: {
     icon: '/favicon.ico',
   },
