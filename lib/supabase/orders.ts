@@ -38,7 +38,6 @@ export interface Order {
   payment_method: PaymentMethod;
   address_id?: string;
   address_data?: any;
-  delivery_code?: string;
   created_at: string;
   updated_at: string;
 }
@@ -198,93 +197,22 @@ export async function getOrderWithUser(orderId: string): Promise<{ order: Order;
 }
 
 /**
- * Gera um código de entrega único de 4 dígitos
+ * Busca pedidos em saiu_entrega há mais de X minutos (para lembrete ao admin)
  */
-export async function generateDeliveryCode(): Promise<string> {
-  // Gera código aleatório de 4 dígitos
-  const generateCode = () => Math.floor(1000 + Math.random() * 9000).toString();
-
-  let code = generateCode();
-  let attempts = 0;
-  const maxAttempts = 10;
-
-  // Verifica se o código já está em uso em algum pedido ativo
-  while (attempts < maxAttempts) {
-    const existing = await getOrderByDeliveryCode(code);
-    if (!existing) {
-      return code;
-    }
-    code = generateCode();
-    attempts++;
-  }
-
-  // Se após várias tentativas ainda colidir, usa timestamp
-  return Date.now().toString().slice(-4);
-}
-
-/**
- * Busca pedido pelo código de entrega (apenas pedidos em saiu_entrega)
- */
-export async function getOrderByDeliveryCode(code: string): Promise<Order | null> {
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*")
-    .eq("delivery_code", code)
-    .eq("status", "saiu_entrega")
-    .single();
-
-  if (error) {
-    // Não é erro se não encontrar
-    if (error.code !== 'PGRST116') {
-      console.error("[getOrderByDeliveryCode] Erro:", error);
-    }
-    return null;
-  }
-
-  return data;
-}
-
-/**
- * Define o código de entrega de um pedido
- */
-export async function setOrderDeliveryCode(orderId: string, code: string): Promise<Order | null> {
-  const { data, error } = await supabase
-    .from("orders")
-    .update({ delivery_code: code, updated_at: new Date().toISOString() })
-    .eq("id", orderId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("[setOrderDeliveryCode] Erro:", error);
-    return null;
-  }
-
-  return data;
-}
-
-/**
- * Busca pedidos aguardando confirmação de entrega há mais de X minutos
- */
-export async function getOrdersAwaitingDeliveryConfirmation(
+export async function getOrdersInDelivery(
   minutesThreshold: number = 30
 ): Promise<Array<{ order: Order; userPhone: string }>> {
   const thresholdTime = new Date(Date.now() - minutesThreshold * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
     .from("orders")
-    .select(`
-      *,
-      users:user_id (
-        phone
-      )
-    `)
+    .select(`*, users:user_id (phone)`)
     .eq("status", "saiu_entrega")
     .lt("updated_at", thresholdTime)
     .order("updated_at", { ascending: true });
 
   if (error) {
-    console.error("Erro ao buscar pedidos aguardando confirmação:", error);
+    console.error("Erro ao buscar pedidos em entrega:", error);
     return [];
   }
 
@@ -294,9 +222,6 @@ export async function getOrdersAwaitingDeliveryConfirmation(
   }));
 }
 
-/**
- * Busca pedido pelo telefone do usuário que está em status saiu_entrega
- */
 /**
  * Atualiza o status de pagamento de um pedido
  */

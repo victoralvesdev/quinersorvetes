@@ -8,6 +8,7 @@ import { useCartContext } from "@/contexts/CartContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoupons } from "@/contexts/CouponContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ export const HeaderDesktop = ({ onSearchChange }: HeaderDesktopProps) => {
   const { openModal: openLoginModal } = useLoginModal();
   const { isAuthenticated, user } = useAuth();
   const { couponsCount } = useCoupons();
+  const { settings } = useSettings();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -83,8 +85,9 @@ export const HeaderDesktop = ({ onSearchChange }: HeaderDesktopProps) => {
             >
               <div className="relative">
                 <Image
-                  src="/images/logotipo.png"
-                  alt="Quiner Logo"
+                  key={settings.logo_url}
+                  src={settings.logo_url}
+                  alt={settings.store_name}
                   width={110}
                   height={44}
                   style={{ width: "auto", height: "44px" }}

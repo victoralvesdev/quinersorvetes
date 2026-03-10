@@ -2,12 +2,15 @@
 
 import { Search } from "lucide-react";
 import Image from "next/image";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface HeaderMobileProps {
   onSearchChange?: (value: string) => void;
 }
 
 export const HeaderMobile = ({ onSearchChange }: HeaderMobileProps) => {
+  const { settings } = useSettings();
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onSearchChange?.(e.target.value);
   };
@@ -18,8 +21,9 @@ export const HeaderMobile = ({ onSearchChange }: HeaderMobileProps) => {
         <div className="flex items-center gap-3">
           <div className="flex-shrink-0 pt-1">
             <Image
-              src="/images/logotipo.png"
-              alt="Quiner Logo"
+              key={settings.logo_url}
+              src={settings.logo_url}
+              alt={settings.store_name}
               width={90}
               height={36}
               style={{ width: "auto", height: "36px" }}

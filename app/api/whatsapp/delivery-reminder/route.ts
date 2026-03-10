@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrdersAwaitingDeliveryConfirmation } from '@/lib/supabase/orders';
+import { getOrdersInDelivery } from '@/lib/supabase/orders';
 import { sendTextMessage } from '@/lib/evolution-api';
 
 const ADMIN_PHONE = process.env.ADMIN_WHATSAPP_NUMBER?.replace(/\D/g, '') || '';
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     console.log('[DeliveryReminder] Verificando pedidos aguardando confirmação...');
 
     // Busca pedidos que estão em saiu_entrega há mais de 30 minutos
-    const ordersAwaiting = await getOrdersAwaitingDeliveryConfirmation(30);
+    const ordersAwaiting = await getOrdersInDelivery(30);
 
     console.log(`[DeliveryReminder] Encontrados ${ordersAwaiting.length} pedidos aguardando confirmação`);
 
@@ -45,18 +45,16 @@ export async function GET(request: NextRequest) {
 
       for (const { order } of ordersAwaiting) {
         const orderCode = order.id.slice(0, 8);
-        const deliveryCode = order.delivery_code || '----';
         const updatedAt = new Date(order.updated_at);
         const minutesAgo = Math.round((Date.now() - updatedAt.getTime()) / (1000 * 60));
 
         mensagemAdmin += `📦 Pedido #${orderCode}\n`;
-        mensagemAdmin += `🔑 Código: *${deliveryCode}*\n`;
         mensagemAdmin += `⏱️ Saiu há ${minutesAgo} minutos\n\n`;
 
         remindersSent.push(orderCode);
       }
 
-      mensagemAdmin += `_O motoboy deve enviar o código de 4 dígitos para confirmar a entrega._`;
+      mensagemAdmin += `_Confirme a entrega pelo painel admin ou pelo app do cliente._`;
 
       try {
         await sendTextMessage(ADMIN_PHONE, mensagemAdmin);

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   updateOrderStatus,
-  generateDeliveryCode,
-  setOrderDeliveryCode,
   getOrderWithUser
 } from '@/lib/supabase/orders';
 import { sendTextMessage } from '@/lib/evolution-api';
@@ -34,24 +32,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Se está mudando para saiu_entrega, precisa gerar código e notificar cliente
+    // Se está mudando para saiu_entrega, notifica o cliente
     if (status === 'saiu_entrega') {
-      console.log('[update-status] Gerando código de entrega...');
-
-      // Gera código de entrega de 4 dígitos
-      const deliveryCode = await generateDeliveryCode();
-      console.log('[update-status] Código gerado:', deliveryCode);
-
-      // Salva o código no pedido
-      const orderWithCode = await setOrderDeliveryCode(orderId, deliveryCode);
-      if (!orderWithCode) {
-        return NextResponse.json(
-          { success: false, error: 'Erro ao salvar código de entrega' },
-          { status: 500 }
-        );
-      }
-
-      // Atualiza o status
       const updatedOrder = await updateOrderStatus(orderId, status);
       if (!updatedOrder) {
         return NextResponse.json(
@@ -63,48 +45,26 @@ export async function POST(request: NextRequest) {
       // Busca dados do usuário para enviar WhatsApp
       const orderData = await getOrderWithUser(orderId);
       if (orderData && orderData.userPhone) {
-        const { userPhone } = orderData;
-
-        // Formata telefone para WhatsApp
         const formatPhoneForWhatsApp = (phone: string): string => {
           const cleaned = phone.replace(/\D/g, '');
           return cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
         };
 
-        const formattedPhone = formatPhoneForWhatsApp(userPhone);
+        const formattedPhone = formatPhoneForWhatsApp(orderData.userPhone);
         const orderCode = orderId.slice(0, 8).toUpperCase();
 
-        // Mensagem para o cliente
         const message = `🚀 *Seu pedido #${orderCode} saiu para entrega!*
-
-🔑 *Código de Confirmação: ${deliveryCode}*
-
-Quando o entregador chegar, informe este código para confirmar o recebimento.
 
 🏍️ _Em breve você receberá seu pedido!_`;
 
-        console.log('[update-status] Enviando WhatsApp para:', formattedPhone);
-
         try {
-          const sent = await sendTextMessage(formattedPhone, message);
-          if (sent) {
-            console.log('[update-status] WhatsApp enviado com sucesso!');
-          } else {
-            console.error('[update-status] Falha ao enviar WhatsApp');
-          }
+          await sendTextMessage(formattedPhone, message);
         } catch (whatsappError) {
           console.error('[update-status] Erro ao enviar WhatsApp:', whatsappError);
-          // Não falha a requisição por causa do WhatsApp
         }
-      } else {
-        console.log('[update-status] Telefone do cliente não encontrado');
       }
 
-      return NextResponse.json({
-        success: true,
-        order: updatedOrder,
-        deliveryCode
-      });
+      return NextResponse.json({ success: true, order: updatedOrder });
     }
 
     // Para outros status, apenas atualiza normalmente

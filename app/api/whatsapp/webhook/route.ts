@@ -8,7 +8,7 @@ import {
 } from '@/lib/supabase/conversation-state';
 import { createProduct, getProductsByCategory, updateProduct, getProductById } from '@/lib/supabase/products';
 import { uploadImageFromBase64 } from '@/lib/supabase/storage';
-import { getOrderByShortCode, updateOrderStatus, getOrderWithUser, generateDeliveryCode, setOrderDeliveryCode, getOrderByDeliveryCode } from '@/lib/supabase/orders';
+import { getOrderByShortCode, updateOrderStatus, getOrderWithUser } from '@/lib/supabase/orders';
 
 // Número do admin configurado
 const ADMIN_PHONE = process.env.ADMIN_WHATSAPP_NUMBER?.replace(/\D/g, '') || '';
@@ -115,9 +115,6 @@ export async function POST(request: NextRequest) {
       // Detecta comando de saiu para entrega: "Saiu #código" ou "Saiu para entrega #código"
       const saiuEntregaRegex = /sa[íi][ur]?\s*(?:para\s*)?(?:entrega\s*)?#?([a-f0-9]{8})/i;
 
-      // Detecta código de entrega de 4 dígitos (enviado pelo motoboy)
-      const codigoEntregaRegex = /^\s*(\d{4})\s*$/;
-
       // Verifica se é mensagem do admin para confirmar/cancelar pedido
       const isAdmin = phoneNumber === ADMIN_PHONE || phoneNumber === ADMIN_PHONE.replace('55', '');
 
@@ -174,7 +171,6 @@ export async function POST(request: NextRequest) {
       const confirmarMatch = messageText.match(confirmarPedidoRegex);
       const cancelarMatch = messageText.match(cancelarPedidoRegex);
       const saiuMatch = messageText.match(saiuEntregaRegex);
-      const codigoEntregaMatch = messageText.match(codigoEntregaRegex);
 
       if (isAdmin && confirmarMatch) {
         const orderCode = confirmarMatch[1];
@@ -185,10 +181,6 @@ export async function POST(request: NextRequest) {
       } else if (isAdmin && saiuMatch) {
         const orderCode = saiuMatch[1];
         await handleSaiuEntrega(phoneNumber, orderCode);
-      } else if (codigoEntregaMatch) {
-        // Motoboy enviando código de entrega
-        const codigo = codigoEntregaMatch[1];
-        await handleCodigoEntrega(phoneNumber, codigo);
       } else if (cadastrarProdutoRegex.test(messageText)) {
         await handleCadastrarProduto(phoneNumber);
       } else if (editarProdutoRegex.test(messageText)) {
@@ -922,12 +914,6 @@ async function handleSaiuEntrega(adminPhone: string, orderCode: string) {
     // Busca dados do cliente
     const fullOrderData = await getOrderWithUser(order.id);
 
-    // Gera código de entrega único
-    const deliveryCode = await generateDeliveryCode();
-
-    // Salva o código no pedido
-    await setOrderDeliveryCode(order.id, deliveryCode);
-
     // Atualiza o status do pedido para "saiu_entrega"
     const updatedOrder = await updateOrderStatus(order.id, 'saiu_entrega');
 
@@ -936,13 +922,13 @@ async function handleSaiuEntrega(adminPhone: string, orderCode: string) {
       return;
     }
 
-    // Notifica o admin com o código
+    // Notifica o admin
     await sendTextMessage(
       adminPhone,
-      `🚴 Pedido #${orderCode} marcado como *SAIU PARA ENTREGA*!\n\n🔑 Código de confirmação: *${deliveryCode}*\n\nO cliente receberá este código. O motoboy deve pedir o código ao cliente e enviar aqui para confirmar a entrega.`
+      `🚴 Pedido #${orderCode} marcado como *SAIU PARA ENTREGA*!`
     );
 
-    // Notifica o cliente com o código
+    // Notifica o cliente
     if (fullOrderData?.userPhone) {
       const formattedPhone = fullOrderData.userPhone.startsWith('55')
         ? fullOrderData.userPhone
@@ -954,24 +940,12 @@ async function handleSaiuEntrega(adminPhone: string, orderCode: string) {
 
 📍 Em breve você estará saboreando o melhor sorvete da região.
 
----
-
-🔐 *SEU CÓDIGO DE CONFIRMAÇÃO:*
-
-    ╔══════════════╗
-    ║     *${deliveryCode}*     ║
-    ╚══════════════╝
-
-📋 *Guarde este código!* Quando o entregador chegar, informe este código para ele confirmar a entrega.
-
-⭐ Esperamos que aproveite! Sua opinião é muito importante para nós.
-
 Agradecemos a preferência! 🍦💜`;
 
       await sendTextMessage(formattedPhone, mensagemCliente);
     }
 
-    console.log('[handleSaiuEntrega] Pedido marcado como saiu para entrega:', orderCode, 'Código:', deliveryCode);
+    console.log('[handleSaiuEntrega] Pedido marcado como saiu para entrega:', orderCode);
   } catch (error) {
     console.error('[handleSaiuEntrega] Erro:', error);
     await sendTextMessage(
@@ -981,80 +955,6 @@ Agradecemos a preferência! 🍦💜`;
   }
 }
 
-/**
- * Processa código de entrega enviado pelo motoboy
- */
-async function handleCodigoEntrega(phoneNumber: string, codigo: string) {
-  try {
-    console.log('[handleCodigoEntrega] Verificando código:', codigo, 'de:', phoneNumber);
-
-    // Busca pedido pelo código de entrega
-    const order = await getOrderByDeliveryCode(codigo);
-
-    if (!order) {
-      // Código inválido ou pedido não encontrado
-      await sendTextMessage(
-        phoneNumber,
-        `❌ Código *${codigo}* não encontrado.\n\nVerifique se o código está correto e se o pedido está em rota de entrega.`
-      );
-      return;
-    }
-
-    const orderCode = order.id.slice(0, 8);
-
-    // Busca dados do cliente
-    const fullOrderData = await getOrderWithUser(order.id);
-
-    // Atualiza o status para entregue
-    const updatedOrder = await updateOrderStatus(order.id, 'entregue');
-
-    if (!updatedOrder) {
-      console.error('[handleCodigoEntrega] Erro ao atualizar status');
-      await sendTextMessage(phoneNumber, `❌ Erro ao confirmar entrega. Tente novamente.`);
-      return;
-    }
-
-    // Confirma para quem enviou o código (motoboy)
-    await sendTextMessage(
-      phoneNumber,
-      `✅ *Entrega Confirmada!*\n\nPedido #${orderCode} foi marcado como *ENTREGUE* com sucesso!\n\nObrigado! 🍦`
-    );
-
-    // Notifica o admin
-    const adminPhone = process.env.ADMIN_WHATSAPP_NUMBER?.replace(/\D/g, '') || '';
-    if (adminPhone && phoneNumber !== adminPhone && phoneNumber !== adminPhone.replace('55', '')) {
-      await sendTextMessage(
-        adminPhone,
-        `✅ *Entrega Confirmada!*\n\nPedido #${orderCode} foi confirmado como entregue.\n\n🔑 Código: ${codigo}\n📱 Confirmado por: ${phoneNumber}`
-      );
-    }
-
-    // Notifica o cliente
-    if (fullOrderData?.userPhone) {
-      const formattedPhone = fullOrderData.userPhone.startsWith('55')
-        ? fullOrderData.userPhone
-        : `55${fullOrderData.userPhone.replace(/\D/g, '')}`;
-
-      const mensagemCliente = `✅ *Pedido #${orderCode} ENTREGUE!*
-
-Seu pedido foi confirmado como entregue! 🎉
-
-Ficamos muito felizes em atender você. 🍦
-
-⭐ Se puder, conta pra gente como foi a experiência! Sua avaliação é super importante para continuarmos melhorando.
-
-Esperamos te ver novamente em breve! 💜
-
-_Equipe Quiner_`;
-
-      await sendTextMessage(formattedPhone, mensagemCliente);
-    }
-
-    console.log('[handleCodigoEntrega] Pedido confirmado como entregue:', orderCode);
-  } catch (error) {
-    console.error('[handleCodigoEntrega] Erro:', error);
-  }
-}
 
 /**
  * Processa o comando "editar produto"

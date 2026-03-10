@@ -27,17 +27,20 @@ npm run lint       # Run linter
    - `AdminContext` - Admin password authentication with localStorage persistence (key: `quiner_admin_auth`)
    - `CartContext` - Convenience wrapper around Zustand cart store
    - `LoginModalContext` - Controls login modal visibility
-   - Provider hierarchy in `components/providers/AppProviders.tsx`: `ToastProvider` > `AuthProvider` > `AdminProvider` > `CartProvider` > `LoginModalProvider`
+   - `CouponContext` - Coupon/discount code state management
+   - `SettingsContext` - App-wide settings from Supabase with localStorage cache (key: `quiner_settings_cache`); exposes `useSettings()` hook with `settings`, `isLoading`, `error`, `refreshSettings`
+   - Provider hierarchy in `components/providers/AppProviders.tsx`: `ToastProvider` > `AuthProvider` > `AdminProvider` > `CartProvider` > `LoginModalProvider` > `SettingsProvider`
 
 ### Data Layer
 
 **Supabase** (`lib/supabase/`):
 - `client.ts` - Supabase client configuration
 - `users.ts`, `addresses.ts`, `orders.ts`, `products.ts`, `categories.ts` - CRUD operations
+- `settings.ts` - App settings CRUD: `getPublicSettings`, `getAllSettings`, `updateSetting`, `updateSettings`, `getSettingsByCategory`
 - `conversation-state.ts` - WhatsApp conversation flow state
 - `storage.ts` - Image upload to Supabase Storage
 
-**Database Tables**: `users`, `addresses`, `orders`, `products`, `categories`, `conversation_state`, `verification_codes`
+**Database Tables**: `users`, `addresses`, `orders`, `products`, `categories`, `conversation_state`, `verification_codes`, `settings`
 
 ### API Routes
 
@@ -99,7 +102,8 @@ app/api/
   ├── entregadores/        # Delivery management
   ├── pedidos/             # Order management
   ├── produtos/            # Product management
-  └── relatorios/          # Reports
+  ├── relatorios/          # Reports
+  └── configuracoes/       # App settings (appearance, contact, social, footer, integrations)
 ```
 
 **Admin Route Protection**: Routes under `/gestao-admin/` (except `/login`) are wrapped with `AdminProtected` component that redirects unauthenticated users to the login page. The admin layout uses `AdminLayout` for consistent navigation.
@@ -143,6 +147,7 @@ accent.pink: "#FFB6C1"
 - `address.ts` - Address, AddressFormData
 - `checkout.ts` - PaymentMethod (`'credit_card' | 'debit_card' | 'pix' | 'cash_on_delivery'`), CheckoutData
 - `whatsapp.ts` - WhatsApp message types
+- `settings.ts` - PublicSettings, AllSettings, SettingRecord, SettingUpdate, DEFAULT_PUBLIC_SETTINGS, DEFAULT_ALL_SETTINGS
 
 **Key Types**:
 ```typescript

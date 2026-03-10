@@ -316,8 +316,17 @@ export default function Home() {
       {/* Mobile Layout */}
       <div className="min-h-screen pb-24 md:hidden bg-background" style={{ paddingTop: "80px" }}>
         {/* Banner */}
-        <div className="pt-4 pb-2">
-          <PromoBanner variant="mobile" />
+        <div className="pt-4 pb-2 mx-4">
+          <div className="relative w-full overflow-hidden rounded-2xl">
+            <Image
+              src="/images/promo/Mobile Site.jpg"
+              alt="Banner Quiner"
+              width={600}
+              height={678}
+              className="w-full h-auto object-cover"
+              priority
+            />
+          </div>
         </div>
 
         {/* Categories */}
@@ -359,7 +368,16 @@ export default function Home() {
       <div className="hidden md:block min-h-screen bg-background">
         <div className="container mx-auto px-6 py-8">
           {/* Banner */}
-          <PromoBanner variant="desktop" />
+          <div className="relative w-full overflow-hidden rounded-2xl mb-8">
+            <Image
+              src="/images/promo/Banner site.jpg"
+              alt="Banner Quiner"
+              width={1600}
+              height={678}
+              className="w-full h-auto object-cover"
+              priority
+            />
+          </div>
 
           {/* Layout with Sidebar */}
           <div className="flex gap-8 items-start">
