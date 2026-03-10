@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Plus, Minus, ShoppingBag, Trash2, IceCream, ArrowRight } from "lucide-react";
+import { X, Plus, Minus, ShoppingBag, Trash2, IceCream, ArrowRight, Store } from "lucide-react";
 import Image from "next/image";
 import { useCartStore } from "@/store/cartStore";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { CheckoutModal } from "@/components/checkout/CheckoutModal";
 import { CheckoutData } from "@/types/checkout";
 import { useToast } from "@/components/ui/Toast";
@@ -180,6 +181,8 @@ function CartItem({
 export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
   const { isAuthenticated, user } = useAuth();
   const { openModal: openLoginModal } = useLoginModal();
+  const { settings } = useSettings();
+  const isStoreOnline = settings.store_online !== false;
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
@@ -402,26 +405,38 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Checkout Button */}
-            <button
-              onClick={handleCheckoutClick}
-              disabled={isCreatingOrder}
-              className={cn(
-                "w-full py-4 rounded-2xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-3",
-                "bg-gradient-to-r from-primary to-primary-dark text-white",
-                "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
-                "active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
-              )}
-            >
-              {isCreatingOrder ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  Finalizar Pedido
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
+            {/* Checkout Button / Store Closed Banner */}
+            {isStoreOnline ? (
+              <button
+                onClick={handleCheckoutClick}
+                disabled={isCreatingOrder}
+                className={cn(
+                  "w-full py-4 rounded-2xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-3",
+                  "bg-gradient-to-r from-primary to-primary-dark text-white",
+                  "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
+                  "active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                )}
+              >
+                {isCreatingOrder ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    Finalizar Pedido
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            ) : (
+              <div className="w-full rounded-2xl bg-gray-100 border border-gray-200 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gray-200 flex items-center justify-center flex-shrink-0">
+                  <Store className="w-5 h-5 text-gray-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-700 text-sm">Loja fechada no momento</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Volte em breve para finalizar seu pedido.</p>
+                </div>
+              </div>
+            )}
 
             {/* Clear Cart */}
             <button

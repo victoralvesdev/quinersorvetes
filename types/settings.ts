@@ -31,6 +31,9 @@ export interface SettingRecord {
 
 // Public settings (accessible by all users)
 export interface PublicSettings {
+  // Store
+  store_online: boolean;
+
   // Appearance
   header_color: string;
   footer_color: string;
@@ -74,6 +77,7 @@ export interface SettingUpdate {
 
 // Default public settings (fallback values)
 export const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
+  store_online: true,
   header_color: "#a36e6c",
   footer_color: "#FAF9F4",
   primary_color: "#a36e6c",

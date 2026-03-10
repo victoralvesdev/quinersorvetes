@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/AdminContext";
+import { useSettings } from "@/contexts/SettingsContext";
+import { updateSetting } from "@/lib/supabase/settings";
 import { getAllOrders } from "@/lib/supabase/orders";
 
 const navigation = [
@@ -96,9 +98,23 @@ function AdminDropdown({ logout }: { logout: () => void }) {
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { logout } = useAdmin();
+  const { settings, refreshSettings } = useSettings();
   const [pendingOrders, setPendingOrders] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
+  const [isTogglingStore, setIsTogglingStore] = useState(false);
+
+  const isStoreOnline = settings.store_online !== false;
+
+  const handleToggleStore = async () => {
+    setIsTogglingStore(true);
+    try {
+      await updateSetting("store_online", !isStoreOnline);
+      await refreshSettings();
+    } finally {
+      setIsTogglingStore(false);
+    }
+  };
 
   // Busca contagem de pedidos novos
   const fetchPendingOrders = async () => {
@@ -340,6 +356,28 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
             {/* Right Side */}
             <div className="flex items-center gap-2">
+              {/* Store Online/Offline Toggle */}
+              <button
+                onClick={handleToggleStore}
+                disabled={isTogglingStore}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border",
+                  isStoreOnline
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                    : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
+                  isTogglingStore && "opacity-60 cursor-not-allowed"
+                )}
+                title={isStoreOnline ? "Loja online — clique para fechar" : "Loja fechada — clique para abrir"}
+              >
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  isStoreOnline ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+                )} />
+                <span className="hidden sm:inline">
+                  {isStoreOnline ? "Loja Aberta" : "Loja Fechada"}
+                </span>
+              </button>
+
               {/* Current Time */}
               <div className="hidden lg:flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl">
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
