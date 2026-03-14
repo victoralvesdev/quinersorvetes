@@ -302,7 +302,7 @@ export async function sendOrderMessage(
   orderId: string,
   orderData: {
     customerName: string;
-    items: Array<{ product_name: string; quantity: number; price: number }>;
+    items: Array<{ product_name: string; quantity: number; price: number; selected_variations?: Record<string, string> }>;
     total: number;
     paymentMethod: string;
     isPaid?: boolean;
@@ -327,7 +327,12 @@ export async function sendOrderMessage(
   try {
     // Formata os itens do pedido
     const itemsText = orderData.items
-      .map((item) => `• ${item.product_name} x${item.quantity} - R$ ${(item.price * item.quantity).toFixed(2)}`)
+      .map((item) => {
+        const variationsText = item.selected_variations && Object.keys(item.selected_variations).length > 0
+          ? '\n  ' + Object.entries(item.selected_variations).map(([k, v]) => `${k}: ${v}`).join(' | ')
+          : '';
+        return `• ${item.product_name} x${item.quantity} - R$ ${(item.price * item.quantity).toFixed(2)}${variationsText}`;
+      })
       .join('\n');
 
     // Formata o endereço
