@@ -7,25 +7,36 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get("host") || "";
 
-  // Verifica se está acessando rotas de admin
-  if (pathname.startsWith("/gestao-admin")) {
-    // Em desenvolvimento, permite acesso local
-    const isLocalhost = hostname.includes("localhost") || hostname.includes("127.0.0.1");
+  const isLocalhost =
+    hostname.includes("localhost") || hostname.includes("127.0.0.1");
+  const isAdminSubdomain =
+    hostname === ADMIN_SUBDOMAIN || hostname.startsWith(`${ADMIN_SUBDOMAIN}:`);
 
-    // Verifica se está no subdomínio correto
-    const isAdminSubdomain = hostname === ADMIN_SUBDOMAIN || hostname.startsWith(`${ADMIN_SUBDOMAIN}:`);
-
-    // Se não for localhost e não for o subdomínio admin, retorna 404
-    if (!isLocalhost && !isAdminSubdomain) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/not-found-page";
-      return NextResponse.rewrite(url);
-    }
+  // Rotas de sistema sempre liberadas (Next.js internals + API)
+  if (pathname.startsWith("/_next/") || pathname.startsWith("/api/")) {
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
+  // Painel admin: acessível apenas no subdomínio correto (ou localhost em dev)
+  if (pathname.startsWith("/gestao-admin")) {
+    if (isLocalhost || isAdminSubdomain) {
+      return NextResponse.next();
+    }
+    // Qualquer outro domínio tentando acessar /gestao-admin → inauguração
+    return NextResponse.redirect(new URL("/inauguracao", request.url));
+  }
+
+  // Página de inauguração: sempre acessível (evita loop)
+  if (pathname.startsWith("/inauguracao")) {
+    return NextResponse.next();
+  }
+
+  // Tudo o mais → inauguração
+  return NextResponse.redirect(new URL("/inauguracao", request.url));
 }
 
 export const config = {
-  matcher: ["/gestao-admin/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|images/|browser-polyfill.js|suppress-extension-errors.js).*)",
+  ],
 };
