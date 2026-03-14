@@ -292,6 +292,8 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
         address_id: checkoutData.addressId,
         address_data: checkoutData.address,
         is_paid: checkoutData.isPaid || false,
+        coupon_code: selectedCoupon?.coupon.code || undefined,
+        discount_amount: couponDiscount > 0 ? couponDiscount : undefined,
       });
 
       // Marcar cupom como usado após pedido criado com sucesso

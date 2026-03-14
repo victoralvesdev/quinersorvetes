@@ -20,6 +20,8 @@ export interface OrderData {
   address_id?: string;
   is_paid?: boolean;
   payment_id?: string;
+  coupon_code?: string;
+  discount_amount?: number;
   address_data?: {
     street: string;
     number: string;
@@ -43,6 +45,8 @@ export interface Order {
   address_data?: any;
   is_paid?: boolean;
   payment_id?: string;
+  coupon_code?: string;
+  discount_amount?: number;
   created_at: string;
   updated_at: string;
 }

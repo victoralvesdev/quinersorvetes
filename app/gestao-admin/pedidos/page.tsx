@@ -179,6 +179,29 @@ export default function PedidosAdminPage() {
     return product?.image || "/images/products/product-1.jpg";
   };
 
+  // Resolve variation IDs to human-readable names using loaded products
+  const resolveVariations = (
+    selected: Record<string, string>,
+    productId: string
+  ): Record<string, string> => {
+    const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(s);
+    if (!Object.keys(selected).some(isUUID)) return selected; // already names
+    const product = products.find((p) => p.id === productId);
+    if (!product?.variations) return selected;
+    const resolved: Record<string, string> = {};
+    for (const [key, value] of Object.entries(selected)) {
+      if (isUUID(key)) {
+        const variation = product.variations.find((v) => v.id === key);
+        if (variation) {
+          const item = variation.items.find((i) => i.id === value);
+          if (item) { resolved[variation.name] = item.name; continue; }
+        }
+      }
+      resolved[key] = value;
+    }
+    return resolved;
+  };
+
   const formatDate = (dateString: string) => {
     return new Intl.DateTimeFormat("pt-BR", {
       day: "2-digit",
@@ -651,8 +674,11 @@ export default function PedidosAdminPage() {
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-secondary/50 uppercase tracking-wide">Itens</p>
                 {order.items.map((item, index) => {
-                  const variations = item.selected_variations && Object.keys(item.selected_variations).length > 0
+                  const rawVariations = item.selected_variations && Object.keys(item.selected_variations).length > 0
                     ? item.selected_variations
+                    : null;
+                  const variations = rawVariations
+                    ? resolveVariations(rawVariations, item.product_id)
                     : null;
                   return (
                     <div key={index} className="flex items-start gap-2 bg-gray-50 rounded-xl p-2">
@@ -690,13 +716,21 @@ export default function PedidosAdminPage() {
 
               {/* Desconto / Cupom */}
               {(() => {
-                const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-                const discount = subtotal - order.total;
-                if (discount <= 0.01) return null;
+                const o = order as any;
+                const discount = o.discount_amount ?? (() => {
+                  const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                  const diff = subtotal - order.total;
+                  return diff > 0.01 ? diff : 0;
+                })();
+                if (!discount || discount < 0.01) return null;
+                const subtotal = order.total + discount;
+                const couponCode = o.coupon_code as string | undefined;
                 return (
                   <div className="flex items-center justify-between px-3 py-2 bg-green-50 rounded-xl border border-green-100">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold text-green-700">Cupom aplicado</span>
+                      <span className="text-xs font-semibold text-green-700">
+                        Cupom{couponCode ? `: ${couponCode}` : " aplicado"}
+                      </span>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-secondary/50 line-through">{formatCurrency(subtotal)}</p>
