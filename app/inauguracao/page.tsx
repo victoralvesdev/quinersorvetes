@@ -9,7 +9,6 @@ function calcularContagem() {
   const agora = new Date().getTime();
   const alvo = DATA_INAUGURACAO.getTime();
   const diff = Math.max(0, alvo - agora);
-
   return {
     dias: Math.floor(diff / (1000 * 60 * 60 * 24)),
     horas: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
@@ -19,89 +18,54 @@ function calcularContagem() {
   };
 }
 
-function UnidadeContagem({ valor, label }: { valor: number; label: string }) {
+function Bloco({ valor, label }: { valor: number; label: string }) {
   return (
-    <div className="flex flex-col items-center">
+    <div style={{ textAlign: "center" }}>
       <div
-        className="relative flex items-center justify-center rounded-2xl md:rounded-3xl"
         style={{
-          width: "clamp(68px, 18vw, 110px)",
-          height: "clamp(68px, 18vw, 110px)",
-          background: "rgba(255,255,255,0.15)",
-          backdropFilter: "blur(12px)",
-          border: "1.5px solid rgba(255,255,255,0.3)",
-          boxShadow: "0 8px 32px rgba(163,110,108,0.18), inset 0 1px 0 rgba(255,255,255,0.25)",
+          position: "relative",
+          fontFamily: "'Space Mono', monospace",
+          fontSize: "clamp(28px, 7vw, 58px)",
+          fontWeight: 700,
+          color: "#1C0E0D",
+          lineHeight: 1,
+          padding: "clamp(12px, 2.5vw, 18px) clamp(14px, 3vw, 22px)",
+          border: "1.5px solid rgba(163,81,79,0.5)",
+          minWidth: "clamp(68px, 16vw, 116px)",
+          backgroundColor: "rgba(255,255,255,0.45)",
+          boxShadow: "3px 3px 0 rgba(163,81,79,0.15)",
         }}
       >
-        <span
-          className="font-bold tabular-nums leading-none"
-          style={{
-            fontSize: "clamp(28px, 7vw, 52px)",
-            color: "#fff",
-            textShadow: "0 2px 12px rgba(163,110,108,0.4)",
-          }}
-        >
-          {String(valor).padStart(2, "0")}
-        </span>
+        {/* Cantos decorativos */}
+        <span style={{ position: "absolute", top: 4, left: 4, display: "block", width: 7, height: 7, borderTop: "1.5px solid #C4553A", borderLeft: "1.5px solid #C4553A" }} />
+        <span style={{ position: "absolute", top: 4, right: 4, display: "block", width: 7, height: 7, borderTop: "1.5px solid #C4553A", borderRight: "1.5px solid #C4553A" }} />
+        <span style={{ position: "absolute", bottom: 4, left: 4, display: "block", width: 7, height: 7, borderBottom: "1.5px solid #C4553A", borderLeft: "1.5px solid #C4553A" }} />
+        <span style={{ position: "absolute", bottom: 4, right: 4, display: "block", width: 7, height: 7, borderBottom: "1.5px solid #C4553A", borderRight: "1.5px solid #C4553A" }} />
+        {String(valor).padStart(2, "0")}
       </div>
-      <span
-        className="mt-2 text-xs md:text-sm font-semibold uppercase tracking-widest"
-        style={{ color: "rgba(255,255,255,0.75)" }}
+      <div
+        style={{
+          fontFamily: "'Josefin Sans', sans-serif",
+          fontSize: 9,
+          letterSpacing: "0.22em",
+          textTransform: "uppercase",
+          color: "#8B6A68",
+          marginTop: 8,
+        }}
       >
         {label}
-      </span>
+      </div>
     </div>
-  );
-}
-
-// Pontos decorativos animados
-function Particulas() {
-  const particulas = [
-    { top: "8%", left: "6%", size: 10, delay: 0, dur: 6 },
-    { top: "14%", left: "82%", size: 7, delay: 1.2, dur: 5 },
-    { top: "28%", left: "93%", size: 12, delay: 0.5, dur: 7 },
-    { top: "72%", left: "4%", size: 9, delay: 2, dur: 5.5 },
-    { top: "85%", left: "88%", size: 8, delay: 0.8, dur: 6.5 },
-    { top: "55%", left: "96%", size: 5, delay: 1.5, dur: 4.5 },
-    { top: "40%", left: "2%", size: 6, delay: 2.5, dur: 6 },
-    { top: "90%", left: "50%", size: 11, delay: 0.3, dur: 7.5 },
-    { top: "5%", left: "45%", size: 8, delay: 1.8, dur: 5.5 },
-  ];
-
-  return (
-    <>
-      {particulas.map((p, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            top: p.top,
-            left: p.left,
-            width: p.size,
-            height: p.size,
-            background: "rgba(255,255,255,0.35)",
-            animation: `pulsar ${p.dur}s ease-in-out ${p.delay}s infinite`,
-          }}
-        />
-      ))}
-    </>
   );
 }
 
 export default function InauguracaoPage() {
   const [contagem, setContagem] = useState(calcularContagem());
-  const [visivel, setVisivel] = useState(false);
 
   useEffect(() => {
-    setVisivel(true);
-    // Trava scroll do body para que nada atrás do overlay seja acessível
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
-
-    const intervalo = setInterval(() => {
-      setContagem(calcularContagem());
-    }, 1000);
-
+    const intervalo = setInterval(() => setContagem(calcularContagem()), 1000);
     return () => {
       clearInterval(intervalo);
       document.body.style.overflow = "";
@@ -112,269 +76,254 @@ export default function InauguracaoPage() {
   return (
     <>
       <style>{`
-        @keyframes pulsar {
-          0%, 100% { opacity: 0.2; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.4); }
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=Josefin+Sans:wght@300;400;600&family=Space+Mono:wght@400;700&display=swap');
+
+        @keyframes revelar {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0);  }
         }
-        @keyframes flutuar {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-12px); }
+        @keyframes piscar {
+          0%, 100% { opacity: 0.55; }
+          50%       { opacity: 0.15; }
         }
-        @keyframes entrar {
-          from { opacity: 0; transform: translateY(28px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes flutuarLogo {
+          0%, 100% { transform: translateY(0px);  }
+          50%       { transform: translateY(-6px); }
         }
-        @keyframes brilhar {
-          0%, 100% { opacity: 0.6; }
-          50% { opacity: 1; }
-        }
+
+        .r1 { animation: revelar 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both; }
+        .r2 { animation: revelar 0.9s cubic-bezier(0.16,1,0.3,1) 0.20s both; }
+        .r3 { animation: revelar 0.9s cubic-bezier(0.16,1,0.3,1) 0.35s both; }
+        .r4 { animation: revelar 0.9s cubic-bezier(0.16,1,0.3,1) 0.50s both; }
+        .r5 { animation: revelar 0.9s cubic-bezier(0.16,1,0.3,1) 0.65s both; }
+        .r6 { animation: revelar 0.9s cubic-bezier(0.16,1,0.3,1) 0.80s both; }
+
+        .logo-flutuando { animation: flutuarLogo 5s ease-in-out infinite; }
+        .piscar-sep { animation: piscar 1.4s ease-in-out infinite; }
       `}</style>
 
+      {/* Tela cheia */}
       <div
-        className="fixed inset-0 overflow-hidden"
         style={{
-          background: "linear-gradient(145deg, #c4918f 0%, #a36e6c 35%, #8a5a58 65%, #5d7184 100%)",
+          position: "fixed",
+          inset: 0,
           zIndex: 9999,
+          overflow: "hidden",
+          backgroundColor: "#F4E8D1",
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23g)' opacity='0.055'/%3E%3C/svg%3E")`,
+          backgroundRepeat: "repeat",
+          backgroundSize: "300px 300px",
         }}
       >
-        {/* Camada de textura suave */}
+        {/* Marca d'água "16" — elemento chave da composição */}
         <div
-          className="absolute inset-0 pointer-events-none"
+          aria-hidden
           style={{
-            background:
-              "radial-gradient(ellipse at 20% 30%, rgba(255,229,229,0.18) 0%, transparent 60%), radial-gradient(ellipse at 80% 70%, rgba(93,113,132,0.25) 0%, transparent 55%)",
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -52%)",
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: "clamp(300px, 60vw, 680px)",
+            fontWeight: 700,
+            color: "rgba(163,81,79,0.055)",
+            lineHeight: 1,
+            userSelect: "none",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+            letterSpacing: "-0.06em",
           }}
-        />
+        >
+          16
+        </div>
 
-        {/* Partículas decorativas */}
-        <Particulas />
+        {/* Cantos do frame */}
+        <div style={{ position:"absolute", top:20, left:20, width:52, height:52, borderTop:"1px solid rgba(163,81,79,0.28)", borderLeft:"1px solid rgba(163,81,79,0.28)" }} />
+        <div style={{ position:"absolute", top:20, right:20, width:52, height:52, borderTop:"1px solid rgba(163,81,79,0.28)", borderRight:"1px solid rgba(163,81,79,0.28)" }} />
+        <div style={{ position:"absolute", bottom:20, left:20, width:52, height:52, borderBottom:"1px solid rgba(163,81,79,0.28)", borderLeft:"1px solid rgba(163,81,79,0.28)" }} />
+        <div style={{ position:"absolute", bottom:20, right:20, width:52, height:52, borderBottom:"1px solid rgba(163,81,79,0.28)", borderRight:"1px solid rgba(163,81,79,0.28)" }} />
 
-        {/* Conteúdo central */}
-        <div className="relative flex flex-col items-center justify-center min-h-screen px-6 py-10 text-center">
+        {/* Conteúdo */}
+        <div
+          style={{
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh",
+            padding: "48px 24px",
+            textAlign: "center",
+            gap: 0,
+          }}
+        >
+
+          {/* Filete superior com identifier */}
+          <div className="r1" style={{ width: "100%", maxWidth: 520, marginBottom: 24 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+              <div style={{ flex:1, height:1, background:"rgba(163,81,79,0.35)" }} />
+              <span style={{
+                fontFamily:"'Josefin Sans', sans-serif",
+                fontSize: 10,
+                letterSpacing: "0.24em",
+                textTransform: "uppercase",
+                color: "#8B6A68",
+                whiteSpace: "nowrap",
+              }}>
+                Quiner Sorveteria · Est. 2026
+              </span>
+              <div style={{ flex:1, height:1, background:"rgba(163,81,79,0.35)" }} />
+            </div>
+          </div>
 
           {/* Logo */}
-          <div
-            className="mb-6 md:mb-8"
-            style={{
-              animation: visivel ? "flutuar 5s ease-in-out infinite" : "none",
-            }}
-          >
+          <div className="r2 logo-flutuando" style={{ marginBottom: 20 }}>
             <div
-              className="relative mx-auto"
               style={{
-                width: "clamp(120px, 30vw, 200px)",
-                height: "clamp(120px, 30vw, 200px)",
-                background: "rgba(255,255,255,0.18)",
-                backdropFilter: "blur(16px)",
+                width: "clamp(96px, 20vw, 148px)",
+                height: "clamp(96px, 20vw, 148px)",
                 borderRadius: "50%",
-                border: "2px solid rgba(255,255,255,0.4)",
-                boxShadow: "0 20px 60px rgba(0,0,0,0.15), inset 0 2px 0 rgba(255,255,255,0.3)",
+                border: "1.5px solid rgba(163,81,79,0.45)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                backgroundColor: "rgba(255,255,255,0.55)",
+                boxShadow: "4px 4px 0 rgba(163,81,79,0.12)",
+                position: "relative",
               }}
             >
               <Image
                 src="/images/logotipo.png"
                 alt="Quiner Sorvetes"
-                width={160}
-                height={160}
-                className="object-contain"
-                style={{
-                  width: "clamp(80px, 20vw, 140px)",
-                  height: "clamp(80px, 20vw, 140px)",
-                }}
+                width={110}
+                height={110}
+                style={{ width:"68%", height:"68%", objectFit:"contain" }}
                 priority
               />
             </div>
           </div>
 
-          {/* Badge "Em breve" */}
-          <div
-            style={{
-              opacity: visivel ? 1 : 0,
-              animation: visivel ? "entrar 0.6s ease-out 0.2s both" : "none",
-            }}
-          >
-            <span
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs md:text-sm font-bold uppercase tracking-widest mb-4"
-              style={{
-                background: "rgba(255,182,193,0.25)",
-                border: "1.5px solid rgba(255,182,193,0.5)",
-                color: "#FFE5E5",
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              <span style={{ animation: "brilhar 2s ease-in-out infinite" }}>✦</span>
-              Em breve
-              <span style={{ animation: "brilhar 2s ease-in-out 0.5s infinite" }}>✦</span>
-            </span>
-          </div>
-
-          {/* Título principal */}
-          <div
-            style={{
-              opacity: visivel ? 1 : 0,
-              animation: visivel ? "entrar 0.6s ease-out 0.35s both" : "none",
-            }}
-          >
-            <h1
-              className="font-extrabold leading-tight mb-2"
-              style={{
-                fontSize: "clamp(32px, 8vw, 72px)",
-                color: "#fff",
-                textShadow: "0 4px 24px rgba(0,0,0,0.18)",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Nossa Inauguração
-            </h1>
-          </div>
-
-          {/* Data destaque */}
-          <div
-            style={{
-              opacity: visivel ? 1 : 0,
-              animation: visivel ? "entrar 0.6s ease-out 0.5s both" : "none",
-            }}
-          >
+          {/* Título */}
+          <div className="r3" style={{ lineHeight: 1, marginBottom: 6 }}>
             <div
-              className="inline-flex flex-col items-center mb-8 md:mb-10 px-8 py-4 rounded-2xl"
               style={{
-                background: "rgba(255,255,255,0.12)",
-                backdropFilter: "blur(12px)",
-                border: "1.5px solid rgba(255,255,255,0.25)",
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "clamp(36px, 8.5vw, 82px)",
+                fontWeight: 300,
+                color: "#1C0E0D",
+                letterSpacing: "-0.01em",
               }}
             >
-              <p
-                className="font-black leading-none"
-                style={{
-                  fontSize: "clamp(42px, 12vw, 100px)",
-                  color: "#FFE5E5",
-                  textShadow: "0 4px 32px rgba(163,110,108,0.5)",
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                16/03
-              </p>
-              <p
-                className="font-semibold uppercase tracking-widest"
-                style={{
-                  fontSize: "clamp(11px, 3vw, 16px)",
-                  color: "rgba(255,255,255,0.8)",
-                  marginTop: "2px",
-                }}
-              >
-                Segunda-feira
-              </p>
+              Nossa
+            </div>
+            <div
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "clamp(36px, 8.5vw, 82px)",
+                fontWeight: 600,
+                fontStyle: "italic",
+                color: "#A3514F",
+                letterSpacing: "-0.015em",
+                marginTop: -6,
+              }}
+            >
+              Inauguração
             </div>
           </div>
 
-          {/* Contador regressivo */}
-          {!contagem.encerrado && (
-            <div
-              style={{
-                opacity: visivel ? 1 : 0,
-                animation: visivel ? "entrar 0.6s ease-out 0.65s both" : "none",
-              }}
-            >
-              <p
-                className="mb-4 text-xs md:text-sm uppercase tracking-widest font-semibold"
-                style={{ color: "rgba(255,255,255,0.65)" }}
-              >
+          {/* Data */}
+          <div className="r4" style={{ marginBottom: 28, marginTop: 18 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, justifyContent:"center", marginBottom:6 }}>
+              <div style={{ width:28, height:1, background:"rgba(196,85,58,0.5)" }} />
+              <span style={{
+                fontFamily:"'Cormorant Garamond', serif",
+                fontSize:"clamp(17px, 4vw, 26px)",
+                fontWeight:400,
+                color:"#1C0E0D",
+                letterSpacing:"0.04em",
+              }}>
+                Segunda-feira, 16 de Março
+              </span>
+              <div style={{ width:28, height:1, background:"rgba(196,85,58,0.5)" }} />
+            </div>
+            <div style={{
+              fontFamily:"'Josefin Sans', sans-serif",
+              fontSize:10,
+              letterSpacing:"0.2em",
+              textTransform:"uppercase",
+              color:"#8B6A68",
+            }}>
+              A partir das 11h
+            </div>
+          </div>
+
+          {/* Contador */}
+          {!contagem.encerrado ? (
+            <div className="r5">
+              <div style={{
+                fontFamily:"'Josefin Sans', sans-serif",
+                fontSize:9,
+                letterSpacing:"0.22em",
+                textTransform:"uppercase",
+                color:"#8B6A68",
+                marginBottom:14,
+              }}>
                 Faltam
-              </p>
-              <div className="flex items-start gap-3 md:gap-5">
-                <UnidadeContagem valor={contagem.dias} label="Dias" />
-                <span
-                  className="font-bold"
-                  style={{
-                    fontSize: "clamp(24px, 6vw, 44px)",
-                    color: "rgba(255,255,255,0.5)",
-                    lineHeight: "clamp(68px, 18vw, 110px)",
-                  }}
-                >
-                  :
-                </span>
-                <UnidadeContagem valor={contagem.horas} label="Horas" />
-                <span
-                  className="font-bold"
-                  style={{
-                    fontSize: "clamp(24px, 6vw, 44px)",
-                    color: "rgba(255,255,255,0.5)",
-                    lineHeight: "clamp(68px, 18vw, 110px)",
-                  }}
-                >
-                  :
-                </span>
-                <UnidadeContagem valor={contagem.minutos} label="Minutos" />
-                <span
-                  className="font-bold"
-                  style={{
-                    fontSize: "clamp(24px, 6vw, 44px)",
-                    color: "rgba(255,255,255,0.5)",
-                    lineHeight: "clamp(68px, 18vw, 110px)",
-                  }}
-                >
-                  :
-                </span>
-                <UnidadeContagem valor={contagem.segundos} label="Segundos" />
+              </div>
+              <div style={{ display:"flex", alignItems:"flex-start", gap:"clamp(6px,2vw,16px)" }}>
+                <Bloco valor={contagem.dias} label="Dias" />
+                <span className="piscar-sep" style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:"clamp(28px,7vw,58px)", color:"#A3514F", paddingTop:"clamp(12px,2.5vw,18px)", lineHeight:1 }}>:</span>
+                <Bloco valor={contagem.horas} label="Horas" />
+                <span className="piscar-sep" style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:"clamp(28px,7vw,58px)", color:"#A3514F", paddingTop:"clamp(12px,2.5vw,18px)", lineHeight:1 }}>:</span>
+                <Bloco valor={contagem.minutos} label="Minutos" />
+                <span className="piscar-sep" style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:"clamp(28px,7vw,58px)", color:"#A3514F", paddingTop:"clamp(12px,2.5vw,18px)", lineHeight:1 }}>:</span>
+                <Bloco valor={contagem.segundos} label="Segundos" />
               </div>
             </div>
-          )}
-
-          {contagem.encerrado && (
-            <div
-              style={{
-                opacity: visivel ? 1 : 0,
-                animation: visivel ? "entrar 0.6s ease-out 0.65s both" : "none",
-              }}
-            >
-              <p
-                className="text-2xl md:text-4xl font-bold"
-                style={{ color: "#FFE5E5" }}
-              >
-                🎉 Chegou o dia!
-              </p>
+          ) : (
+            <div className="r5" style={{
+              fontFamily:"'Cormorant Garamond', serif",
+              fontSize:"clamp(26px,6vw,52px)",
+              fontStyle:"italic",
+              color:"#A3514F",
+            }}>
+              Chegou o grande dia!
             </div>
           )}
 
-          {/* Tagline */}
-          <div
-            style={{
-              opacity: visivel ? 1 : 0,
-              animation: visivel ? "entrar 0.6s ease-out 0.8s both" : "none",
-            }}
-          >
-            <p
-              className="mt-8 md:mt-10 font-medium"
-              style={{
-                fontSize: "clamp(14px, 3.5vw, 20px)",
-                color: "rgba(255,255,255,0.7)",
-                maxWidth: "360px",
-                lineHeight: 1.6,
-              }}
-            >
-              Sorvetes artesanais com amor e sabor.<br />
-              <span style={{ color: "rgba(255,229,229,0.9)" }}>Quiner Sorveteria</span> te espera!
-            </p>
+          {/* Filete inferior + tagline */}
+          <div className="r6" style={{ width:"100%", maxWidth:520, marginTop:28 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+              <div style={{ flex:1, height:1, background:"rgba(163,81,79,0.2)" }} />
+              <span style={{
+                fontFamily:"'Cormorant Garamond', serif",
+                fontSize:"clamp(14px,3vw,18px)",
+                fontStyle:"italic",
+                color:"#8B6A68",
+                whiteSpace:"nowrap",
+              }}>
+                Sorvetes artesanais feitos com amor
+              </span>
+              <div style={{ flex:1, height:1, background:"rgba(163,81,79,0.2)" }} />
+            </div>
           </div>
 
-          {/* Rodapé sutil */}
-          <div
-            className="absolute bottom-5 left-0 right-0 flex justify-center"
-            style={{
-              opacity: visivel ? 1 : 0,
-              animation: visivel ? "entrar 0.6s ease-out 1s both" : "none",
-            }}
-          >
-            <p
-              className="text-xs"
-              style={{ color: "rgba(255,255,255,0.35)" }}
-            >
-              quiner.com.br
-            </p>
-          </div>
+        </div>
+
+        {/* Rodapé */}
+        <div style={{
+          position:"absolute",
+          bottom:14,
+          left:0,
+          right:0,
+          textAlign:"center",
+          fontFamily:"'Josefin Sans', sans-serif",
+          fontSize:9,
+          letterSpacing:"0.22em",
+          textTransform:"uppercase",
+          color:"rgba(139,106,104,0.35)",
+        }}>
+          quiner.com.br
         </div>
       </div>
     </>

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const ADMIN_SUBDOMAIN = "painel.quiner.com.br";
+// Domínios com acesso irrestrito ao app (beta, preview, staging)
+const DOMINIOS_LIBERADOS = ["quinersorvetes-beta.vercel.app"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -11,6 +13,14 @@ export function middleware(request: NextRequest) {
     hostname.includes("localhost") || hostname.includes("127.0.0.1");
   const isAdminSubdomain =
     hostname === ADMIN_SUBDOMAIN || hostname.startsWith(`${ADMIN_SUBDOMAIN}:`);
+  const isDominioLiberado = DOMINIOS_LIBERADOS.some(
+    (d) => hostname === d || hostname.startsWith(`${d}:`)
+  );
+
+  // Localhost e domínios beta/preview: acesso total sem restrição
+  if (isLocalhost || isDominioLiberado) {
+    return NextResponse.next();
+  }
 
   // Rotas de sistema sempre liberadas (Next.js internals + API)
   if (pathname.startsWith("/_next/") || pathname.startsWith("/api/")) {
