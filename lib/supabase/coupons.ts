@@ -153,7 +153,7 @@ export function calculateDiscount(coupon: Coupon, orderTotal: number, shippingCo
 /**
  * Marca um cupom como usado
  */
-export async function useUserCoupon(userCouponId: string): Promise<void> {
+export async function markUserCouponAsUsed(userCouponId: string): Promise<void> {
   try {
     const { error } = await supabase
       .from('user_coupons')

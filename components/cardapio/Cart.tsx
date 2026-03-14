@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useCoupons } from "@/contexts/CouponContext";
-import { calculateDiscount, useUserCoupon, incrementCouponUsage } from "@/lib/supabase/coupons";
+import { calculateDiscount, markUserCouponAsUsed, incrementCouponUsage } from "@/lib/supabase/coupons";
 import { CheckoutModal } from "@/components/checkout/CheckoutModal";
 import { CheckoutData } from "@/types/checkout";
 import { useToast } from "@/components/ui/Toast";
@@ -285,7 +285,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
       // Marcar cupom como usado após pedido criado com sucesso
       if (selectedCoupon) {
         try {
-          await useUserCoupon(selectedCoupon.id);
+          await markUserCouponAsUsed(selectedCoupon.id);
           await incrementCouponUsage(selectedCoupon.coupon.id);
           selectCoupon(null);
         } catch (couponError) {
