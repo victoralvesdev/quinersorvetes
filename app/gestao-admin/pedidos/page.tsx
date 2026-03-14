@@ -650,29 +650,61 @@ export default function PedidosAdminPage() {
               {/* Products */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-secondary/50 uppercase tracking-wide">Itens</p>
-                {order.items.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2">
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-white flex-shrink-0 border border-gray-100">
-                      <Image
-                        src={getProductImage(item.product_id)}
-                        alt={item.product_name}
-                        width={40}
-                        height={40}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = "/images/products/product-1.jpg";
-                        }}
-                      />
+                {order.items.map((item, index) => {
+                  const variations = item.selected_variations && Object.keys(item.selected_variations).length > 0
+                    ? item.selected_variations
+                    : null;
+                  return (
+                    <div key={index} className="flex items-start gap-2 bg-gray-50 rounded-xl p-2">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-white flex-shrink-0 border border-gray-100 mt-0.5">
+                        <Image
+                          src={getProductImage(item.product_id)}
+                          alt={item.product_name}
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = "/images/products/product-1.jpg";
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-secondary-dark truncate">{item.product_name}</p>
+                        {variations && (
+                          <div className="mt-0.5 space-y-0.5">
+                            {Object.entries(variations).map(([key, value]) => (
+                              <p key={key} className="text-xs text-secondary/60">
+                                <span className="font-medium">{key}:</span> {value}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-xs text-secondary/50 mt-0.5">{formatCurrency(item.price)}</p>
+                      </div>
+                      <span className="text-xs font-bold text-secondary/70 mt-0.5">x{item.quantity}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-secondary-dark truncate">{item.product_name}</p>
-                      <p className="text-xs text-secondary/50">{formatCurrency(item.price)}</p>
-                    </div>
-                    <span className="text-xs font-bold text-secondary/70">x{item.quantity}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+
+              {/* Desconto / Cupom */}
+              {(() => {
+                const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const discount = subtotal - order.total;
+                if (discount <= 0.01) return null;
+                return (
+                  <div className="flex items-center justify-between px-3 py-2 bg-green-50 rounded-xl border border-green-100">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-green-700">Cupom aplicado</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-secondary/50 line-through">{formatCurrency(subtotal)}</p>
+                      <p className="text-xs font-bold text-green-600">-{formatCurrency(discount)}</p>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

@@ -8,6 +8,7 @@ export interface OrderItem {
   product_name: string;
   quantity: number;
   price: number;
+  selected_variations?: Record<string, string>;
 }
 
 export interface OrderData {

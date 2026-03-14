@@ -257,15 +257,27 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
 
     setIsCreatingOrder(true);
     try {
-      const orderItems = items.map((item) => ({
-        product_id: item.product.id,
-        product_name: item.product.name,
-        quantity: item.quantity,
-        price: item.product.price + (item.additionalPrice || 0),
-        base_price: item.product.price,
-        additional_price: item.additionalPrice || 0,
-        selected_variations: item.selectedVariations || {},
-      }));
+      const orderItems = items.map((item) => {
+        // Converte IDs de variação para nomes legíveis
+        const variationNames: Record<string, string> = {};
+        if (item.selectedVariations && item.product.variations) {
+          for (const variation of item.product.variations) {
+            const selectedItemId = item.selectedVariations[variation.id!];
+            if (!selectedItemId) continue;
+            const selectedItem = variation.items.find((vi) => vi.id === selectedItemId);
+            if (selectedItem) variationNames[variation.name] = selectedItem.name;
+          }
+        }
+        return {
+          product_id: item.product.id,
+          product_name: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price + (item.additionalPrice || 0),
+          base_price: item.product.price,
+          additional_price: item.additionalPrice || 0,
+          selected_variations: variationNames,
+        };
+      });
 
       const subtotal = getTotal();
       const couponDiscount = selectedCoupon ? calculateDiscount(selectedCoupon.coupon, subtotal) : 0;
