@@ -24,6 +24,7 @@ interface CheckoutModalProps {
     address?: AddressFormData;
     paymentMethod: PaymentMethod;
   }) => Promise<void>;
+  finalAmount?: number;
 }
 
 type CheckoutStep = "address" | "payment" | "pix" | "card" | "cash";
@@ -33,7 +34,7 @@ interface ChangeData {
   changeFor?: number;
 }
 
-export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProps) {
+export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: CheckoutModalProps) {
   const { user, isAuthenticated } = useAuth();
   const [step, setStep] = useState<CheckoutStep>("address");
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -48,6 +49,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
   const [changeData, setChangeData] = useState<ChangeData | undefined>();
 
   const getTotal = useCartStore((state) => state.getTotal());
+  const amount = finalAmount !== undefined ? finalAmount : getTotal;
 
   const loadAddresses = useCallback(async () => {
     if (!user) return;
@@ -191,7 +193,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
         <div className="p-4 space-y-4">
           {step === "pix" ? (
             <PixPaymentScreen
-              amount={getTotal}
+              amount={amount}
               onBack={() => {
                 setStep("payment");
                 setPixPaymentId(undefined);
@@ -203,7 +205,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
             />
           ) : step === "card" ? (
             <CardPaymentScreen
-              amount={getTotal}
+              amount={amount}
               onBack={() => {
                 setStep("payment");
                 setCardPaymentId(undefined);
@@ -217,7 +219,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
             />
           ) : step === "cash" ? (
             <CashPaymentScreen
-              amount={getTotal}
+              amount={amount}
               onBack={() => {
                 setStep("payment");
                 setChangeData(undefined);
@@ -276,7 +278,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-lg font-semibold text-secondary">Total:</span>
                   <span className="text-2xl font-bold text-primary">
-                    {formatCurrency(getTotal)}
+                    {formatCurrency(amount)}
                   </span>
                 </div>
 

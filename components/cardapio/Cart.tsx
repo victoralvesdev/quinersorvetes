@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Plus, Minus, ShoppingBag, Trash2, IceCream, ArrowRight, Store } from "lucide-react";
+import { X, Plus, Minus, ShoppingBag, Trash2, IceCream, ArrowRight, Store, Tag, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import { useCartStore } from "@/store/cartStore";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useCoupons } from "@/contexts/CouponContext";
+import { calculateDiscount, useUserCoupon, incrementCouponUsage } from "@/lib/supabase/coupons";
 import { CheckoutModal } from "@/components/checkout/CheckoutModal";
 import { CheckoutData } from "@/types/checkout";
 import { useToast } from "@/components/ui/Toast";
@@ -182,6 +184,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
   const { isAuthenticated, user } = useAuth();
   const { openModal: openLoginModal } = useLoginModal();
   const { settings } = useSettings();
+  const { selectedCoupon, selectCoupon, coupons } = useCoupons();
   const isStoreOnline = settings.store_online !== false;
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
@@ -264,16 +267,31 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
         selected_variations: item.selectedVariations || {},
       }));
 
+      const subtotal = getTotal();
+      const couponDiscount = selectedCoupon ? calculateDiscount(selectedCoupon.coupon, subtotal) : 0;
+      const totalFinal = Math.max(0, subtotal - couponDiscount);
+
       const newOrder = await createOrder({
         user_id: user.id,
         items: orderItems,
-        total: getTotal(),
+        total: totalFinal,
         status: "novo",
         payment_method: checkoutData.paymentMethod,
         address_id: checkoutData.addressId,
         address_data: checkoutData.address,
         is_paid: checkoutData.isPaid || false,
       });
+
+      // Marcar cupom como usado após pedido criado com sucesso
+      if (selectedCoupon) {
+        try {
+          await useUserCoupon(selectedCoupon.id);
+          await incrementCouponUsage(selectedCoupon.coupon.id);
+          selectCoupon(null);
+        } catch (couponError) {
+          console.error("[Cart] Erro ao marcar cupom como usado:", couponError);
+        }
+      }
 
       // Send WhatsApp message (background) — retenta 1x em caso de falha
       const sendWhatsApp = async () => {
@@ -325,6 +343,8 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
 
   const itemCount = getItemCount();
   const total = getTotal();
+  const discount = selectedCoupon ? calculateDiscount(selectedCoupon.coupon, total) : 0;
+  const finalTotal = Math.max(0, total - discount);
 
   return (
     <>
@@ -394,12 +414,62 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
         {/* Footer */}
         {items.length > 0 && (
           <div className="flex-shrink-0 border-t border-gray-100 bg-white p-5 pb-24 md:pb-5 space-y-4">
+            {/* Cupons disponíveis */}
+            {isAuthenticated && coupons.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-secondary/70">
+                  <Tag className="w-4 h-4" />
+                  <span>Cupons disponíveis</span>
+                </div>
+                <div className="space-y-2">
+                  {coupons.map((uc) => {
+                    const isSelected = selectedCoupon?.id === uc.id;
+                    const couponDiscount = calculateDiscount(uc.coupon, total);
+                    return (
+                      <button
+                        key={uc.id}
+                        onClick={() => selectCoupon(isSelected ? null : uc)}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all duration-200 text-left",
+                          isSelected
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                            : "border-gray-200 bg-white hover:border-primary/40"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={cn("w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0", isSelected ? "bg-primary" : "bg-gray-100")}>
+                            {isSelected
+                              ? <CheckCircle className="w-4 h-4 text-white" />
+                              : <Tag className="w-3.5 h-3.5 text-secondary/50" />
+                            }
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-secondary-dark">{uc.coupon.code}</p>
+                            <p className="text-xs text-secondary/60">{uc.coupon.description}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-semibold text-green-600 ml-2 whitespace-nowrap">
+                          -{formatCurrency(couponDiscount)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Summary */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm text-secondary/70">
                 <span>Subtotal</span>
                 <span>{formatCurrency(total)}</span>
               </div>
+              {discount > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-green-600">Desconto ({selectedCoupon?.coupon.code})</span>
+                  <span className="text-green-600 font-semibold">-{formatCurrency(discount)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-sm text-secondary/70">
                 <span>Entrega</span>
                 <span className="text-green-600 font-medium">Grátis</span>
@@ -409,9 +479,14 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                 <span className="text-base font-semibold text-secondary-dark">
                   Total
                 </span>
-                <span className="text-2xl font-bold text-primary">
-                  {formatCurrency(total)}
-                </span>
+                <div className="text-right">
+                  {discount > 0 && (
+                    <p className="text-xs text-secondary/40 line-through">{formatCurrency(total)}</p>
+                  )}
+                  <span className="text-2xl font-bold text-primary">
+                    {formatCurrency(finalTotal)}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -468,6 +543,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
           isOpen={isCheckoutOpen}
           onClose={() => setIsCheckoutOpen(false)}
           onComplete={handleCheckoutComplete}
+          finalAmount={finalTotal}
         />
       )}
     </>
