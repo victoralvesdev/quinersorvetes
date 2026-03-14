@@ -18,9 +18,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Log para debug (mostra apenas os primeiros caracteres)
-    console.log('Token configurado:', ACCESS_TOKEN.substring(0, 20) + '...');
-
     const body = await request.json();
     const { amount, description, payerEmail, payerName, payerCpf, orderId } = body;
 
@@ -57,54 +54,45 @@ export async function POST(request: NextRequest) {
       paymentData.external_reference = orderId;
     }
 
-    console.log('Enviando requisição para Mercado Pago:', JSON.stringify(paymentData, null, 2));
+    console.log('Enviando requisição PIX para Mercado Pago:', { orderId, amount });
 
-    // Gerar chave de idempotência única para evitar pagamentos duplicados
     const idempotencyKey = randomUUID();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
-    const response = await fetch(MERCADOPAGO_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ACCESS_TOKEN}`,
-        'X-Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify(paymentData),
-    });
+    let response: Response;
+    try {
+      response = await fetch(MERCADOPAGO_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ACCESS_TOKEN}`,
+          'X-Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(paymentData),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
-    console.log('Status da resposta:', response.status);
+    console.log('Status da resposta MP:', response.status);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { message: errorText || 'Erro desconhecido' };
-      }
-      
-      console.error('Erro na API do Mercado Pago:', JSON.stringify({
-        status: response.status,
-        statusText: response.statusText,
-        error: errorData,
-      }, null, 2));
-      
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Erro na API do Mercado Pago:', { status: response.status, cause: errorData.cause });
       return NextResponse.json(
-        { 
-          error: errorData.message || errorData.error || 'Erro ao criar pagamento PIX',
-          details: errorData 
-        },
+        { error: errorData.message || errorData.error || 'Erro ao criar pagamento PIX' },
         { status: response.status }
       );
     }
 
     const responseData = await response.json();
-    console.log('Resposta do Mercado Pago recebida');
 
-    if (!responseData || !responseData.point_of_interaction) {
-      console.error('Resposta inválida do Mercado Pago:', responseData);
+    if (!responseData?.point_of_interaction) {
+      console.error('Resposta inválida do Mercado Pago: point_of_interaction ausente');
       return NextResponse.json(
-        { error: 'Erro ao criar pagamento PIX - resposta inválida', details: responseData },
+        { error: 'Erro ao criar pagamento PIX. Tente novamente.' },
         { status: 500 }
       );
     }
@@ -122,16 +110,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(pixData);
   } catch (error: any) {
-    console.error('Erro ao criar pagamento PIX:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    });
+    const isTimeout = error.name === 'AbortError';
+    console.error('Erro ao criar pagamento PIX:', error.name, error.message);
     return NextResponse.json(
-      { 
-        error: error.message || 'Erro ao processar pagamento PIX',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
+      { error: isTimeout ? 'Tempo esgotado ao conectar com Mercado Pago. Tente novamente.' : 'Erro ao processar pagamento PIX.' },
       { status: 500 }
     );
   }

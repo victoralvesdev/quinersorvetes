@@ -11,6 +11,7 @@ import {
   Clock,
   AlertCircle,
   ChevronDown,
+  User,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -50,6 +51,29 @@ const steps = [
   },
 ];
 
+function formatCPF(value: string) {
+  const cleaned = value.replace(/\D/g, "");
+  if (cleaned.length <= 3) return cleaned;
+  if (cleaned.length <= 6) return `${cleaned.slice(0, 3)}.${cleaned.slice(3)}`;
+  if (cleaned.length <= 9) return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
+  return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9, 11)}`;
+}
+
+function validarCPF(cpf: string) {
+  const nums = cpf.replace(/\D/g, "");
+  if (nums.length !== 11 || /^(\d)\1{10}$/.test(nums)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(nums[i]) * (10 - i);
+  let rest = (sum * 10) % 11;
+  if (rest === 10 || rest === 11) rest = 0;
+  if (rest !== parseInt(nums[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(nums[i]) * (11 - i);
+  rest = (sum * 10) % 11;
+  if (rest === 10 || rest === 11) rest = 0;
+  return rest === parseInt(nums[10]);
+}
+
 export function PixPaymentScreen({
   amount,
   orderId,
@@ -57,18 +81,47 @@ export function PixPaymentScreen({
   onPaymentCreated,
   onContinue,
 }: PixPaymentScreenProps) {
+  const [cpf, setCpf] = useState("");
+  const [cpfConfirmado, setCpfConfirmado] = useState(false);
   const [pixData, setPixData] = useState<PixData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showQrCode, setShowQrCode] = useState(false);
   const { showToast } = useToast();
 
+  // Só gera o PIX após o CPF ser confirmado
   useEffect(() => {
-    if (!pixData && !isLoading) {
+    if (cpfConfirmado && !pixData && !isLoading) {
       createPixPayment();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [cpfConfirmado]);
+
+  // Polling automático a cada 10s para detectar pagamento sem o usuário clicar
+  useEffect(() => {
+    if (!pixData?.paymentId || paymentConfirmed) return;
+
+    const intervalo = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/mercadopago/check-payment?paymentId=${pixData.paymentId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status === "approved") {
+          setPaymentConfirmed(true);
+          clearInterval(intervalo);
+          showToast("Pagamento confirmado! ✓", "success");
+          setTimeout(() => onContinue(), 1500);
+        }
+      } catch {
+        // silencia erros de polling
+      }
+    }, 10000);
+
+    return () => clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pixData?.paymentId, paymentConfirmed]);
 
   const createPixPayment = async () => {
     setIsLoading(true);
@@ -81,6 +134,8 @@ export function PixPaymentScreen({
         body: JSON.stringify({
           amount: amount.toFixed(2),
           description: `Pedido ${orderId || "N/A"}`,
+          payerCpf: cpf.replace(/\D/g, ""),
+          orderId,
         }),
       });
 
@@ -116,6 +171,84 @@ export function PixPaymentScreen({
       showToast("Erro ao copiar código PIX", "error");
     }
   };
+
+  // Tela de CPF — aparece antes de gerar o PIX
+  if (!cpfConfirmado) {
+    const cpfValido = validarCPF(cpf);
+    return (
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-secondary" />
+          </button>
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-secondary-dark">Pagamento PIX</h2>
+            <p className="text-sm text-secondary/60">
+              Valor: <span className="font-semibold text-primary">{formatCurrency(amount)}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* CPF Form */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <User className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-secondary-dark text-sm">Identificação do pagador</p>
+              <p className="text-xs text-secondary/60">Necessário para emitir o PIX</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-secondary mb-2 block">
+              Seu CPF
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="000.000.000-00"
+              value={cpf}
+              onChange={(e) => setCpf(formatCPF(e.target.value))}
+              maxLength={14}
+              className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-secondary font-mono text-lg"
+              autoFocus
+            />
+            {cpf.replace(/\D/g, "").length === 11 && !cpfValido && (
+              <p className="text-xs text-red-500 mt-1.5">CPF inválido. Verifique o número.</p>
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              if (!cpfValido) {
+                showToast("CPF inválido. Verifique o número.", "error");
+                return;
+              }
+              setCpfConfirmado(true);
+            }}
+            disabled={!cpfValido}
+            className="w-full py-4 rounded-xl font-bold text-base bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg shadow-primary/25 hover:shadow-xl active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <QrCode className="w-5 h-5" />
+            Gerar QR Code PIX
+          </button>
+        </div>
+
+        <button
+          onClick={onBack}
+          className="w-full py-3 text-secondary/60 hover:text-secondary font-medium text-sm transition-colors"
+        >
+          Escolher outra forma de pagamento
+        </button>
+      </div>
+    );
+  }
 
   // Loading State
   if (isLoading) {
@@ -301,11 +434,45 @@ export function PixPaymentScreen({
 
       {/* Finalize Button */}
       <button
-        onClick={onContinue}
-        className="w-full py-4 rounded-xl font-bold text-base bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25 hover:shadow-xl active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3"
+        onClick={async () => {
+          if (paymentConfirmed) { onContinue(); return; }
+          if (!pixData?.paymentId) return;
+          setIsVerifying(true);
+          try {
+            const res = await fetch(`/api/mercadopago/check-payment?paymentId=${pixData.paymentId}`);
+            const data = await res.json();
+            if (data.status === "approved") {
+              setPaymentConfirmed(true);
+              showToast("Pagamento confirmado! ✓", "success");
+              setTimeout(() => onContinue(), 800);
+            } else {
+              showToast("Pagamento ainda não confirmado. Aguarde alguns instantes.", "error");
+            }
+          } catch {
+            showToast("Erro ao verificar pagamento. Tente novamente.", "error");
+          } finally {
+            setIsVerifying(false);
+          }
+        }}
+        disabled={isVerifying || paymentConfirmed}
+        className="w-full py-4 rounded-xl font-bold text-base bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25 hover:shadow-xl active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
       >
-        <CheckCircle2 className="w-5 h-5" />
-        Já realizei o pagamento
+        {isVerifying ? (
+          <>
+            <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            Verificando pagamento...
+          </>
+        ) : paymentConfirmed ? (
+          <>
+            <CheckCircle2 className="w-5 h-5" />
+            Pagamento confirmado!
+          </>
+        ) : (
+          <>
+            <CheckCircle2 className="w-5 h-5" />
+            Já realizei o pagamento
+          </>
+        )}
       </button>
 
       {/* Back Button */}

@@ -272,29 +272,39 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
         payment_method: checkoutData.paymentMethod,
         address_id: checkoutData.addressId,
         address_data: checkoutData.address,
+        is_paid: checkoutData.isPaid || false,
       });
 
-      // Send WhatsApp message (background)
-      try {
-        await fetch("/api/whatsapp/send-order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: newOrder.id,
-            customerPhone: user.phone,
-            orderData: {
-              customerName: user.name,
-              items: orderItems,
-              total: getTotal(),
-              paymentMethod: checkoutData.paymentMethod,
-              isPaid: checkoutData.isPaid || false,
-              address: checkoutData.address,
-            },
-          }),
+      // Send WhatsApp message (background) — retenta 1x em caso de falha
+      const sendWhatsApp = async () => {
+        const body = JSON.stringify({
+          orderId: newOrder.id,
+          customerPhone: user.phone,
+          orderData: {
+            customerName: user.name,
+            items: orderItems,
+            total: getTotal(),
+            paymentMethod: checkoutData.paymentMethod,
+            isPaid: checkoutData.isPaid || false,
+            address: checkoutData.address,
+          },
         });
-      } catch (whatsappError) {
-        console.error("[Cart] Erro ao enviar WhatsApp:", whatsappError);
-      }
+        const opts = { method: "POST", headers: { "Content-Type": "application/json" }, body };
+        try {
+          const res = await fetch("/api/whatsapp/send-order", opts);
+          if (!res.ok) throw new Error(`status ${res.status}`);
+        } catch (err) {
+          console.error("[Cart] Falha no WhatsApp, tentando novamente...", err);
+          try {
+            await new Promise((r) => setTimeout(r, 3000));
+            await fetch("/api/whatsapp/send-order", opts);
+          } catch (retryErr) {
+            console.error("[Cart] WhatsApp falhou após retry. Pedido:", newOrder.id, retryErr);
+            showToast("Pedido criado, mas notificação WhatsApp falhou. Anote o pedido.", "error");
+          }
+        }
+      };
+      sendWhatsApp();
 
       clearCart();
       setIsCheckoutOpen(false);

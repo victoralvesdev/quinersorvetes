@@ -1,7 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+
+function formatPhone(value: string) {
+  const n = value.replace(/\D/g, "").slice(0, 11);
+  if (n.length <= 2) return n;
+  if (n.length <= 7) return `(${n.slice(0, 2)}) ${n.slice(2)}`;
+  return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+}
 
 const DATA_INAUGURACAO = new Date("2026-03-16T11:00:00-03:00");
 
@@ -61,6 +68,12 @@ function Bloco({ valor, label }: { valor: number; label: string }) {
 
 export default function InauguracaoPage() {
   const [contagem, setContagem] = useState(calcularContagem());
+  const [showPanel, setShowPanel] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [erro, setErro] = useState("");
+  const clicksRef = useRef(0);
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -72,6 +85,42 @@ export default function InauguracaoPage() {
       document.documentElement.style.overflow = "";
     };
   }, []);
+
+  // Requer 3 cliques rápidos para abrir (evita abertura acidental)
+  const handleHiddenClick = () => {
+    clicksRef.current += 1;
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+    clickTimerRef.current = setTimeout(() => { clicksRef.current = 0; }, 800);
+    if (clicksRef.current >= 3) {
+      clicksRef.current = 0;
+      setShowPanel(true);
+      setPhone("");
+      setErro("");
+    }
+  };
+
+  const handleVerificar = async () => {
+    const phoneLimpo = phone.replace(/\D/g, "");
+    if (phoneLimpo.length < 10) { setErro("Digite um telefone válido."); return; }
+    setVerifying(true);
+    setErro("");
+    try {
+      const res = await fetch("/api/auth/preview-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneLimpo }),
+      });
+      if (res.ok) {
+        window.location.href = "/";
+      } else {
+        setErro("Acesso não autorizado.");
+      }
+    } catch {
+      setErro("Erro ao verificar. Tente novamente.");
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   return (
     <>
@@ -325,6 +374,133 @@ export default function InauguracaoPage() {
         }}>
           quiner.com.br
         </div>
+
+        {/* Botão invisível — canto inferior direito — 3 cliques rápidos para abrir */}
+        <button
+          onClick={handleHiddenClick}
+          aria-hidden="true"
+          tabIndex={-1}
+          style={{
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+            width: 48,
+            height: 48,
+            opacity: 0,
+            cursor: "default",
+            background: "transparent",
+            border: "none",
+          }}
+        />
+
+        {/* Modal de acesso */}
+        {showPanel && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 99999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(28,14,13,0.55)",
+              backdropFilter: "blur(4px)",
+            }}
+            onClick={() => setShowPanel(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "#F4E8D1",
+                border: "1.5px solid rgba(163,81,79,0.35)",
+                borderRadius: 16,
+                padding: "32px 28px",
+                width: "min(360px, 90vw)",
+                boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
+                fontFamily: "'Josefin Sans', sans-serif",
+              }}
+            >
+              <p style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: 22,
+                fontWeight: 600,
+                color: "#1C0E0D",
+                marginBottom: 6,
+              }}>
+                Acesso restrito
+              </p>
+              <p style={{ fontSize: 12, color: "#8B6A68", marginBottom: 20, letterSpacing: "0.05em" }}>
+                Digite seu telefone para continuar
+              </p>
+
+              <input
+                type="tel"
+                inputMode="numeric"
+                placeholder="(11) 99999-9999"
+                value={phone}
+                onChange={(e) => { setPhone(formatPhone(e.target.value)); setErro(""); }}
+                onKeyDown={(e) => e.key === "Enter" && handleVerificar()}
+                autoFocus
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  borderRadius: 10,
+                  border: `1.5px solid ${erro ? "#C4553A" : "rgba(163,81,79,0.35)"}`,
+                  background: "rgba(255,255,255,0.6)",
+                  fontSize: 18,
+                  fontFamily: "monospace",
+                  color: "#1C0E0D",
+                  outline: "none",
+                  marginBottom: 8,
+                  boxSizing: "border-box",
+                }}
+              />
+
+              {erro && (
+                <p style={{ fontSize: 12, color: "#C4553A", marginBottom: 12 }}>{erro}</p>
+              )}
+
+              <button
+                onClick={handleVerificar}
+                disabled={verifying}
+                style={{
+                  width: "100%",
+                  padding: "13px",
+                  borderRadius: 10,
+                  background: verifying ? "rgba(163,81,79,0.5)" : "#A3514F",
+                  color: "#fff",
+                  fontFamily: "'Josefin Sans', sans-serif",
+                  fontSize: 13,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                  border: "none",
+                  cursor: verifying ? "not-allowed" : "pointer",
+                  marginBottom: 10,
+                  transition: "opacity 0.2s",
+                }}
+              >
+                {verifying ? "Verificando..." : "Entrar"}
+              </button>
+
+              <button
+                onClick={() => setShowPanel(false)}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  background: "transparent",
+                  border: "none",
+                  color: "#8B6A68",
+                  fontSize: 12,
+                  letterSpacing: "0.1em",
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

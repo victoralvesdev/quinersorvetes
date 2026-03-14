@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    console.log('[MP Webhook] Recebido:', JSON.stringify(body, null, 2));
+    console.log('[MP Webhook] Recebido:', { type: body.type, dataId: body.data?.id });
 
     // Verifica assinatura se o secret estiver configurado
     if (WEBHOOK_SECRET) {
@@ -125,13 +125,24 @@ export async function POST(request: NextRequest) {
 
         console.log('[MP Webhook] Pagamento aprovado para pedido:', orderId);
 
-        // Atualiza o status de pagamento do pedido
+        // Idempotência: verifica se o pedido já foi marcado como pago
+        const { data: existingOrder } = await (await import('@/lib/supabase/client')).supabase
+          .from('orders')
+          .select('is_paid')
+          .eq('id', orderId)
+          .single();
+
+        if (existingOrder?.is_paid) {
+          console.log('[MP Webhook] Pedido já marcado como pago, ignorando duplicata');
+          return NextResponse.json({ received: true });
+        }
+
         const updated = await updateOrderPaymentStatus(orderId, true, paymentId.toString());
 
         if (updated) {
           console.log('[MP Webhook] Pedido atualizado com sucesso');
         } else {
-          console.error('[MP Webhook] Erro ao atualizar pedido');
+          console.error('[MP Webhook] Erro ao atualizar pedido:', orderId);
         }
       }
     }
@@ -155,14 +166,15 @@ async function getPaymentDetails(paymentId: string | number) {
     return null;
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
   try {
     const response = await fetch(
       `https://api.mercadopago.com/v1/payments/${paymentId}`,
       {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
-        },
+        headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` },
+        signal: controller.signal,
       }
     );
 
@@ -172,9 +184,11 @@ async function getPaymentDetails(paymentId: string | number) {
     }
 
     return await response.json();
-  } catch (error) {
-    console.error('[MP Webhook] Erro na requisição:', error);
+  } catch (error: any) {
+    console.error('[MP Webhook] Erro na requisição:', error.name, error.message);
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

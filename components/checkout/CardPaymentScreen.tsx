@@ -122,6 +122,49 @@ export function CardPaymentScreen({
     return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9, 11)}`;
   };
 
+  const luhnCheck = (num: string) => {
+    const digits = num.replace(/\D/g, "");
+    let sum = 0;
+    let shouldDouble = false;
+    for (let i = digits.length - 1; i >= 0; i--) {
+      let d = parseInt(digits[i]);
+      if (shouldDouble) { d *= 2; if (d > 9) d -= 9; }
+      sum += d;
+      shouldDouble = !shouldDouble;
+    }
+    return sum % 10 === 0;
+  };
+
+  const validateCard = () => {
+    const rawCard = cardNumber.replace(/\s/g, "");
+    if (rawCard.length < 13 || !luhnCheck(rawCard)) {
+      showToast("Número do cartão inválido.", "error"); return false;
+    }
+    if (!cardholderName.trim()) {
+      showToast("Informe o nome do titular.", "error"); return false;
+    }
+    const month = parseInt(expirationMonth);
+    const year = parseInt(expirationYear.length === 2 ? `20${expirationYear}` : expirationYear);
+    const now = new Date();
+    if (!month || month < 1 || month > 12) {
+      showToast("Mês de validade inválido.", "error"); return false;
+    }
+    if (!year || year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1)) {
+      showToast("Cartão vencido ou data inválida.", "error"); return false;
+    }
+    if (securityCode.length < 3) {
+      showToast("CVV inválido.", "error"); return false;
+    }
+    const cpfNums = identificationNumber.replace(/\D/g, "");
+    if (cpfNums.length !== 11) {
+      showToast("CPF inválido.", "error"); return false;
+    }
+    if (!email.includes("@") || !email.includes(".")) {
+      showToast("E-mail inválido.", "error"); return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -130,19 +173,7 @@ export function CardPaymentScreen({
       return;
     }
 
-    // Validation
-    if (
-      !cardNumber ||
-      !cardholderName ||
-      !expirationMonth ||
-      !expirationYear ||
-      !securityCode ||
-      !identificationNumber ||
-      !email
-    ) {
-      showToast("Preencha todos os campos", "error");
-      return;
-    }
+    if (!validateCard()) return;
 
     setIsLoading(true);
     setError(null);

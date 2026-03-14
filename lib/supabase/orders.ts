@@ -17,6 +17,8 @@ export interface OrderData {
   status: "novo" | "preparando" | "saiu_entrega" | "entregue" | "cancelado";
   payment_method: PaymentMethod;
   address_id?: string;
+  is_paid?: boolean;
+  payment_id?: string;
   address_data?: {
     street: string;
     number: string;
@@ -38,6 +40,8 @@ export interface Order {
   payment_method: PaymentMethod;
   address_id?: string;
   address_data?: any;
+  is_paid?: boolean;
+  payment_id?: string;
   created_at: string;
   updated_at: string;
 }

@@ -199,7 +199,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete }: CheckoutModalProp
               onPaymentCreated={(paymentId) => {
                 setPixPaymentId(paymentId);
               }}
-              onContinue={() => handleFinishCheckout()}
+              onContinue={() => handleFinishCheckout(true)}
             />
           ) : step === "card" ? (
             <CardPaymentScreen

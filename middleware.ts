@@ -17,8 +17,11 @@ export function middleware(request: NextRequest) {
     (d) => hostname === d || hostname.startsWith(`${d}:`)
   );
 
-  // Localhost e domínios beta/preview: acesso total sem restrição
-  if (isLocalhost || isDominioLiberado) {
+  const hasPreviewAccess =
+    request.cookies.get("quiner_preview")?.value === "1";
+
+  // Localhost, domínios beta/preview e usuário autorizado: acesso total
+  if (isLocalhost || isDominioLiberado || hasPreviewAccess) {
     return NextResponse.next();
   }
 
@@ -27,12 +30,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Painel admin: acessível apenas no subdomínio correto (ou localhost em dev)
+  // Painel admin: acessível apenas no subdomínio correto
   if (pathname.startsWith("/gestao-admin")) {
-    if (isLocalhost || isAdminSubdomain) {
+    if (isAdminSubdomain) {
       return NextResponse.next();
     }
-    // Qualquer outro domínio tentando acessar /gestao-admin → inauguração
     return NextResponse.redirect(new URL("/inauguracao", request.url));
   }
 

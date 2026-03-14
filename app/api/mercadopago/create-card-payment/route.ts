@@ -69,35 +69,36 @@ export async function POST(request: NextRequest) {
       paymentData.external_reference = orderId;
     }
 
-    console.log('Enviando pagamento para Mercado Pago...');
+    console.log('Enviando pagamento cartão para Mercado Pago:', { orderId, amount, installments });
 
     const idempotencyKey = randomUUID();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
-    const response = await fetch(MERCADOPAGO_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ACCESS_TOKEN}`,
-        'X-Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify(paymentData),
-    });
+    let response: Response;
+    try {
+      response = await fetch(MERCADOPAGO_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ACCESS_TOKEN}`,
+          'X-Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(paymentData),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const responseData = await response.json();
 
-    console.log('Resposta do Mercado Pago:', {
-      status: response.status,
-      paymentStatus: responseData.status,
-      statusDetail: responseData.status_detail,
-    });
+    console.log('Resposta MP cartão:', { status: response.status, paymentStatus: responseData.status, statusDetail: responseData.status_detail });
 
     if (!response.ok) {
-      console.error('Erro na API do Mercado Pago:', JSON.stringify(responseData, null, 2));
+      console.error('Erro na API MP cartão:', { status: response.status, cause: responseData.cause });
       return NextResponse.json(
-        {
-          error: responseData.message || 'Erro ao processar pagamento',
-          details: responseData
-        },
+        { error: responseData.message || 'Erro ao processar pagamento' },
         { status: response.status }
       );
     }
@@ -108,15 +109,10 @@ export async function POST(request: NextRequest) {
       statusDetail: responseData.status_detail,
     });
   } catch (error: any) {
-    console.error('Erro ao processar pagamento com cartão:', {
-      message: error.message,
-      stack: error.stack,
-    });
+    const isTimeout = error.name === 'AbortError';
+    console.error('Erro ao processar pagamento com cartão:', error.name, error.message);
     return NextResponse.json(
-      {
-        error: error.message || 'Erro ao processar pagamento',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
+      { error: isTimeout ? 'Tempo esgotado ao conectar com Mercado Pago. Tente novamente.' : 'Erro ao processar pagamento.' },
       { status: 500 }
     );
   }
