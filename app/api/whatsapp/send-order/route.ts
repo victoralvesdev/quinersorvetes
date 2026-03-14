@@ -12,8 +12,6 @@ export async function POST(request: NextRequest) {
     const { orderId, orderData, customerPhone } = body;
 
     console.log('[send-order] Dados recebidos:', JSON.stringify({ orderId, customerPhone, isPaid: orderData?.isPaid, paymentMethod: orderData?.paymentMethod }, null, 2));
-    console.log('[send-order] Admin phone configurado:', process.env.ADMIN_WHATSAPP_NUMBER);
-
     if (!orderId || !orderData || !customerPhone) {
       console.log('[send-order] ERRO: Dados incompletos');
       return NextResponse.json(
@@ -31,21 +29,21 @@ export async function POST(request: NextRequest) {
     };
 
     const formattedPhone = formatPhoneForWhatsApp(customerPhone);
-    const adminPhoneRaw = process.env.ADMIN_WHATSAPP_NUMBER; // Variável de ambiente do servidor
-    const adminPhone = adminPhoneRaw ? formatPhoneForWhatsApp(adminPhoneRaw) : undefined;
+    const adminPhoneRaw = process.env.ADMIN_WHATSAPP_NUMBER || '';
+    const adminPhones = adminPhoneRaw
+      .split(',')
+      .map((n) => n.trim())
+      .filter(Boolean)
+      .map(formatPhoneForWhatsApp);
 
-    console.log('[send-order] Admin phone configurado:', !!adminPhone);
-    console.log('[send-order] Admin phone:', adminPhone);
-
+    console.log('[send-order] Admins configurados:', adminPhones.length);
     console.log('[send-order] Chamando sendOrderMessage...');
-    console.log('[send-order] formattedPhone:', formattedPhone);
-    console.log('[send-order] adminPhone:', adminPhone);
 
     const success = await sendOrderMessage(
       formattedPhone,
       orderId,
       orderData,
-      adminPhone
+      adminPhones
     );
 
     console.log('[send-order] Resultado do sendOrderMessage:', success);

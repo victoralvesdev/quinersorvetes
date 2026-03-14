@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOrdersInDelivery } from '@/lib/supabase/orders';
 import { sendTextMessage } from '@/lib/evolution-api';
 
-const ADMIN_PHONE = process.env.ADMIN_WHATSAPP_NUMBER?.replace(/\D/g, '') || '';
+const ADMIN_PHONES = (process.env.ADMIN_WHATSAPP_NUMBER || '')
+  .split(',')
+  .map((n) => n.trim().replace(/\D/g, ''))
+  .filter(Boolean);
 
 /**
  * API para enviar lembretes de pedidos sem confirmação de entrega
@@ -39,8 +42,8 @@ export async function GET(request: NextRequest) {
 
     const remindersSent: string[] = [];
 
-    // Notifica o admin sobre pedidos sem confirmação
-    if (ADMIN_PHONE) {
+    // Notifica os admins sobre pedidos sem confirmação
+    if (ADMIN_PHONES.length > 0) {
       let mensagemAdmin = `⚠️ *Pedidos aguardando confirmação de entrega:*\n\n`;
 
       for (const { order } of ordersAwaiting) {
@@ -56,11 +59,13 @@ export async function GET(request: NextRequest) {
 
       mensagemAdmin += `_Confirme a entrega pelo painel admin ou pelo app do cliente._`;
 
-      try {
-        await sendTextMessage(ADMIN_PHONE, mensagemAdmin);
-        console.log(`[DeliveryReminder] Lembrete enviado ao admin`);
-      } catch (error) {
-        console.error(`[DeliveryReminder] Erro ao enviar lembrete:`, error);
+      for (const adminPhone of ADMIN_PHONES) {
+        try {
+          await sendTextMessage(adminPhone, mensagemAdmin);
+          console.log(`[DeliveryReminder] Lembrete enviado ao admin ${adminPhone}`);
+        } catch (error) {
+          console.error(`[DeliveryReminder] Erro ao enviar lembrete para ${adminPhone}:`, error);
+        }
       }
     }
 

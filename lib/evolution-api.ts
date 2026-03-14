@@ -317,7 +317,7 @@ export async function sendOrderMessage(
       reference?: string;
     };
   },
-  adminPhoneNumber?: string
+  adminPhoneNumbers?: string | string[]
 ): Promise<boolean> {
   if (!isEvolutionConfigured()) {
     console.error('Evolution API não configurada. Verifique as variáveis de ambiente.');
@@ -365,28 +365,22 @@ ${paymentStatusText}
 📍 *Endereço de Entrega:*
 ${addressText}`;
 
-    // Se houver número do admin, envia mensagem com comandos para confirmar/cancelar
-    if (adminPhoneNumber) {
-      console.log('[sendOrderMessage] Enviando mensagem para admin:', adminPhoneNumber);
+    // Se houver número(s) do admin, envia mensagem com comandos para confirmar/cancelar
+    const adminNumbers = adminPhoneNumbers
+      ? (Array.isArray(adminPhoneNumbers) ? adminPhoneNumbers : [adminPhoneNumbers]).filter(Boolean)
+      : [];
 
+    if (adminNumbers.length > 0) {
       const orderCode = orderId.slice(0, 8);
-
-      // Envia a descrição do pedido
-      await sendTextMessage(adminPhoneNumber, description);
-
-      // Pequeno delay para garantir ordem das mensagens
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Envia mensagem de confirmação
-      await sendTextMessage(adminPhoneNumber, `Confirmar #${orderCode}`);
-
-      // Pequeno delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Envia mensagem de cancelamento
-      await sendTextMessage(adminPhoneNumber, `Cancelar #${orderCode}`);
-
-      console.log('[sendOrderMessage] Mensagens de acao enviadas para admin');
+      for (const adminPhone of adminNumbers) {
+        console.log('[sendOrderMessage] Enviando mensagem para admin:', adminPhone);
+        await sendTextMessage(adminPhone, description);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await sendTextMessage(adminPhone, `Confirmar #${orderCode}`);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        await sendTextMessage(adminPhone, `Cancelar #${orderCode}`);
+      }
+      console.log('[sendOrderMessage] Mensagens enviadas para', adminNumbers.length, 'admin(s)');
     } else {
       console.log('[sendOrderMessage] Admin phone number não configurado');
     }

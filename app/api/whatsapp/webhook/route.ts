@@ -10,8 +10,13 @@ import { createProduct, getProductsByCategory, updateProduct, getProductById } f
 import { uploadImageFromBase64 } from '@/lib/supabase/storage';
 import { getOrderByShortCode, updateOrderStatus, getOrderWithUser } from '@/lib/supabase/orders';
 
-// Número do admin configurado
-const ADMIN_PHONE = process.env.ADMIN_WHATSAPP_NUMBER?.replace(/\D/g, '') || '';
+// Números dos admins configurados (suporta múltiplos separados por vírgula)
+const ADMIN_PHONES = (process.env.ADMIN_WHATSAPP_NUMBER || '')
+  .split(',')
+  .map((n) => n.trim().replace(/\D/g, ''))
+  .filter(Boolean);
+// Mantém o primeiro como ADMIN_PHONE para compatibilidade com funções que enviam resposta
+const ADMIN_PHONE = ADMIN_PHONES[0] || '';
 
 // Timeout em minutos para cancelar conversa inativa
 const CONVERSATION_TIMEOUT_MINUTES = 10;
@@ -116,7 +121,9 @@ export async function POST(request: NextRequest) {
       const saiuEntregaRegex = /sa[íi][ur]?\s*(?:para\s*)?(?:entrega\s*)?#?([a-f0-9]{8})/i;
 
       // Verifica se é mensagem do admin para confirmar/cancelar pedido
-      const isAdmin = phoneNumber === ADMIN_PHONE || phoneNumber === ADMIN_PHONE.replace('55', '');
+      const isAdmin = ADMIN_PHONES.some(
+        (p) => phoneNumber === p || phoneNumber === p.replace(/^55/, '')
+      );
 
       // Verifica se é resposta de botão de pedido (confirmar/cancelar)
       const buttonResponse = message.message?.buttonsResponseMessage;
