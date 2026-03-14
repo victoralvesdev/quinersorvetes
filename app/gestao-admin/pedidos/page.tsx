@@ -24,7 +24,8 @@ import {
 import { formatCurrency, cn } from "@/lib/utils";
 import { getAllOrders, Order } from "@/lib/supabase/orders";
 import { getProducts } from "@/lib/supabase/products";
-import { Product } from "@/types/product";
+import { Product, ProductVariation } from "@/types/product";
+import { getVariationsMapForProducts } from "@/lib/supabase/variations";
 import { useToast } from "@/components/ui/Toast";
 
 const statusConfig = {
@@ -104,6 +105,7 @@ function KanbanSkeleton() {
 export default function PedidosAdminPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [variationsMap, setVariationsMap] = useState<Record<string, ProductVariation[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -115,15 +117,23 @@ export default function PedidosAdminPage() {
     loadData();
   }, []);
 
+  const loadOrdersWithVariations = async () => {
+    const [ordersData, productsData] = await Promise.all([
+      getAllOrders(),
+      getProducts(),
+    ]);
+    const productIds = [...new Set(ordersData.flatMap((o) => o.items.map((i) => i.product_id)))];
+    const varMap = await getVariationsMapForProducts(productIds);
+    return { ordersData, productsData, varMap };
+  };
+
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [ordersData, productsData] = await Promise.all([
-        getAllOrders(),
-        getProducts(),
-      ]);
+      const { ordersData, productsData, varMap } = await loadOrdersWithVariations();
       setOrders(ordersData);
       setProducts(productsData);
+      setVariationsMap(varMap);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       showToast("Erro ao carregar dados", "error");
@@ -135,12 +145,10 @@ export default function PedidosAdminPage() {
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
-      const [ordersData, productsData] = await Promise.all([
-        getAllOrders(),
-        getProducts(),
-      ]);
+      const { ordersData, productsData, varMap } = await loadOrdersWithVariations();
       setOrders(ordersData);
       setProducts(productsData);
+      setVariationsMap(varMap);
       showToast("Dados atualizados!", "success");
     } catch (error) {
       console.error("Erro ao atualizar dados:", error);
@@ -179,25 +187,26 @@ export default function PedidosAdminPage() {
     return product?.image || "/images/products/product-1.jpg";
   };
 
-  // Resolve variation IDs to human-readable names using loaded products
+  // Resolve variation IDs to human-readable names using variationsMap
   const resolveVariations = (
     selected: Record<string, string>,
     productId: string
   ): Record<string, string> => {
     const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(s);
     if (!Object.keys(selected).some(isUUID)) return selected; // already names
-    const product = products.find((p) => p.id === productId);
-    if (!product?.variations) return selected;
+    const variations = variationsMap[productId];
+    if (!variations) return {};
     const resolved: Record<string, string> = {};
     for (const [key, value] of Object.entries(selected)) {
       if (isUUID(key)) {
-        const variation = product.variations.find((v) => v.id === key);
+        const variation = variations.find((v) => v.id === key);
         if (variation) {
           const item = variation.items.find((i) => i.id === value);
           if (item) { resolved[variation.name] = item.name; continue; }
         }
+      } else {
+        resolved[key] = value;
       }
-      resolved[key] = value;
     }
     return resolved;
   };

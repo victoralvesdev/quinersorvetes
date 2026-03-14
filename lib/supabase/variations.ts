@@ -144,6 +144,58 @@ export async function saveProductVariations(
 }
 
 /**
+ * Busca variações de múltiplos produtos de uma vez.
+ * Retorna um mapa { productId -> variations[] }
+ */
+export async function getVariationsMapForProducts(
+  productIds: string[]
+): Promise<Record<string, ProductVariation[]>> {
+  if (productIds.length === 0) return {};
+
+  const { data: variations, error } = await supabase
+    .from('product_variations')
+    .select('*')
+    .in('product_id', productIds)
+    .order('display_order', { ascending: true });
+
+  if (error || !variations || variations.length === 0) return {};
+
+  const variationIds = variations.map((v) => v.id);
+
+  const { data: items } = await supabase
+    .from('product_variation_items')
+    .select('*')
+    .in('variation_id', variationIds)
+    .order('display_order', { ascending: true });
+
+  const itemsByVariation: Record<string, ProductVariationItem[]> = {};
+  for (const item of items || []) {
+    if (!itemsByVariation[item.variation_id]) itemsByVariation[item.variation_id] = [];
+    itemsByVariation[item.variation_id].push({
+      id: item.id,
+      name: item.name,
+      price: Number(item.price),
+      display_order: item.display_order,
+    });
+  }
+
+  const map: Record<string, ProductVariation[]> = {};
+  for (const v of variations) {
+    if (!map[v.product_id]) map[v.product_id] = [];
+    map[v.product_id].push({
+      id: v.id,
+      name: v.name,
+      required: v.required,
+      has_price: v.has_price,
+      display_order: v.display_order,
+      items: itemsByVariation[v.id] || [],
+    });
+  }
+
+  return map;
+}
+
+/**
  * Deleta todas as variações de um produto
  */
 export async function deleteProductVariations(productId: string): Promise<boolean> {
