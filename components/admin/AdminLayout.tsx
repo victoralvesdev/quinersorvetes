@@ -18,11 +18,14 @@ import {
   LogOut,
   Menu,
   X,
-  Tag
+  Tag,
+  AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useNotifications } from "@/contexts/NotificationsContext";
 import { updateSetting } from "@/lib/supabase/settings";
 import { getAllOrders } from "@/lib/supabase/orders";
 
@@ -99,8 +102,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { logout } = useAdmin();
   const { settings, refreshSettings } = useSettings();
+  const { lowStockProducts, lowStockCount } = useNotifications();
   const [pendingOrders, setPendingOrders] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [isTogglingStore, setIsTogglingStore] = useState(false);
 
@@ -115,6 +121,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       setIsTogglingStore(false);
     }
   };
+
+  const totalNotifications = pendingOrders + lowStockCount;
+
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Busca contagem de pedidos novos
   const fetchPendingOrders = async () => {
@@ -385,14 +404,113 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </div>
 
               {/* Notifications */}
-              <button className="relative p-2.5 rounded-xl hover:bg-gray-100 transition-colors group">
-                <Bell className="w-5 h-5 text-secondary/60 group-hover:text-secondary transition-colors" />
-                {pendingOrders > 0 && (
-                  <span className="absolute top-1 right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-sm animate-pulse">
-                    {pendingOrders}
-                  </span>
-                )}
-              </button>
+              <div className="relative" ref={notificationsRef}>
+                <button
+                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                  className="relative p-2.5 rounded-xl hover:bg-gray-100 transition-colors group"
+                >
+                  <Bell className={cn(
+                    "w-5 h-5 transition-colors",
+                    isNotificationsOpen ? "text-primary" : "text-secondary/60 group-hover:text-secondary"
+                  )} />
+                  {totalNotifications > 0 && (
+                    <span className="absolute top-1 right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-sm animate-pulse">
+                      {totalNotifications}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown */}
+                <div className={cn(
+                  "absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100/50 z-50 transition-all duration-200 origin-top-right overflow-hidden",
+                  isNotificationsOpen ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+                )}>
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                    <p className="text-sm font-bold text-secondary-dark">Notificações</p>
+                    {totalNotifications > 0 && (
+                      <span className="text-xs bg-red-100 text-red-600 font-semibold px-2 py-0.5 rounded-full">
+                        {totalNotifications} nova{totalNotifications !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="max-h-96 overflow-y-auto">
+                    {/* Pedidos pendentes */}
+                    {pendingOrders > 0 && (
+                      <div className="p-3 border-b border-gray-50">
+                        <p className="text-xs font-semibold text-secondary/50 uppercase tracking-wider mb-2 px-1">
+                          Pedidos
+                        </p>
+                        <Link
+                          href="/gestao-admin/pedidos"
+                          onClick={() => setIsNotificationsOpen(false)}
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 transition-colors group"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                            <Package className="w-4 h-4 text-orange-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-secondary-dark">
+                              {pendingOrders} pedido{pendingOrders !== 1 ? 's' : ''} novo{pendingOrders !== 1 ? 's' : ''}
+                            </p>
+                            <p className="text-xs text-secondary/50">Aguardando confirmação</p>
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 text-secondary/30 group-hover:text-orange-500 transition-colors shrink-0" />
+                        </Link>
+                      </div>
+                    )}
+
+                    {/* Estoque baixo */}
+                    {lowStockProducts.length > 0 && (
+                      <div className="p-3">
+                        <p className="text-xs font-semibold text-secondary/50 uppercase tracking-wider mb-2 px-1">
+                          Estoque baixo
+                        </p>
+                        <div className="space-y-1">
+                          {lowStockProducts.slice(0, 5).map((product) => (
+                            <Link
+                              key={product.id}
+                              href="/gestao-admin/produtos"
+                              onClick={() => setIsNotificationsOpen(false)}
+                              className="flex items-center gap-3 p-3 rounded-xl hover:bg-amber-50 transition-colors group"
+                            >
+                              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-secondary-dark truncate">
+                                  {product.name}
+                                </p>
+                                <p className="text-xs text-amber-600 font-medium">
+                                  {product.stock_quantity === 0
+                                    ? 'Esgotado'
+                                    : `${product.stock_quantity} un. restantes`}
+                                </p>
+                              </div>
+                              <ExternalLink className="w-3.5 h-3.5 text-secondary/30 group-hover:text-amber-500 transition-colors shrink-0" />
+                            </Link>
+                          ))}
+                          {lowStockProducts.length > 5 && (
+                            <p className="text-xs text-secondary/40 text-center py-1">
+                              +{lowStockProducts.length - 5} outros produtos
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {totalNotifications === 0 && (
+                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                          <Bell className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <p className="text-sm font-medium text-secondary-dark">Tudo em ordem!</p>
+                        <p className="text-xs text-secondary/50 mt-1">Nenhuma notificação no momento</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
 
               {/* Divider */}
               <div className="hidden lg:block w-px h-8 bg-gray-200 mx-2" />

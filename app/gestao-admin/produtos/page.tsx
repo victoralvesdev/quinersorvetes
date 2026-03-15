@@ -25,7 +25,9 @@ import {
   ChevronDown,
   ChevronUp,
   Lock,
-  Coins
+  Coins,
+  Archive,
+  AlertTriangle,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { getProducts, createProduct, updateProduct, deleteProduct, getProductById } from "@/lib/supabase/products";
@@ -90,6 +92,8 @@ export default function ProdutosPage() {
     price: "",
     image: "",
     available: true,
+    stock_quantity: "",
+    low_stock_threshold: "",
   });
 
   // Variations state
@@ -236,6 +240,8 @@ export default function ProdutosPage() {
         price: formatPriceToBRL(product.price),
         image: product.image || "",
         available: product.available,
+        stock_quantity: product.stock_quantity != null ? String(product.stock_quantity) : "",
+        low_stock_threshold: product.low_stock_threshold != null ? String(product.low_stock_threshold) : "",
       });
       // Carregar variações do produto
       const productVariations = await getProductVariations(product.id);
@@ -259,6 +265,8 @@ export default function ProdutosPage() {
         price: "",
         image: "",
         available: true,
+        stock_quantity: "",
+        low_stock_threshold: "",
       });
       setVariations([]);
     }
@@ -275,8 +283,22 @@ export default function ProdutosPage() {
       price: "",
       image: "",
       available: true,
+      stock_quantity: "",
+      low_stock_threshold: "",
     });
     setVariations([]);
+  };
+
+  const sendLowStockAlert = async (productName: string, stockQty: number, threshold: number) => {
+    try {
+      await fetch('/api/whatsapp/low-stock-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productName, stockQuantity: stockQty, threshold }),
+      });
+    } catch {
+      // Silencia erros de notificação — não bloqueia o fluxo principal
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -284,6 +306,8 @@ export default function ProdutosPage() {
     setIsSaving(true);
     try {
       const priceValue = parsePriceFromBRL(formData.price);
+      const stockQty = formData.stock_quantity !== "" ? parseInt(formData.stock_quantity, 10) : null;
+      const stockThreshold = formData.low_stock_threshold !== "" ? parseInt(formData.low_stock_threshold, 10) : null;
       let productId: string | null = null;
 
       if (editingProduct) {
@@ -294,9 +318,21 @@ export default function ProdutosPage() {
           category_id: formData.category,
           image: formData.image,
           available: formData.available,
+          stock_quantity: stockQty,
+          low_stock_threshold: stockThreshold,
         });
         if (updated) {
           productId = editingProduct.id;
+          // Envia alerta se estoque mudou e está abaixo do limite
+          const prevStock = editingProduct.stock_quantity;
+          if (
+            stockQty !== null &&
+            stockThreshold !== null &&
+            stockQty <= stockThreshold &&
+            stockQty !== prevStock
+          ) {
+            await sendLowStockAlert(formData.name, stockQty, stockThreshold);
+          }
         } else {
           showToast("Erro ao atualizar produto", "error");
           return;
@@ -309,9 +345,15 @@ export default function ProdutosPage() {
           category_id: formData.category,
           image: formData.image,
           available: formData.available,
+          stock_quantity: stockQty,
+          low_stock_threshold: stockThreshold,
         });
         if (created) {
           productId = created.id;
+          // Envia alerta se novo produto já começa com estoque baixo
+          if (stockQty !== null && stockThreshold !== null && stockQty <= stockThreshold) {
+            await sendLowStockAlert(formData.name, stockQty, stockThreshold);
+          }
         } else {
           showToast("Erro ao criar produto", "error");
           return;
@@ -931,6 +973,50 @@ export default function ProdutosPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Stock */}
+              <div className="p-4 bg-amber-50/60 border border-amber-100 rounded-xl space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Archive className="w-4 h-4 text-amber-600" />
+                  <p className="text-sm font-semibold text-secondary-dark">Controle de Estoque</p>
+                  <span className="text-xs text-secondary/40 font-normal">(opcional)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-secondary/70 mb-1.5">
+                      Quantidade em estoque
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.stock_quantity}
+                      onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                      placeholder="Ex: 50"
+                      className="w-full px-3 py-2.5 bg-white border border-amber-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-secondary/70 mb-1.5">
+                      Alertar quando restar
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.low_stock_threshold}
+                      onChange={(e) => setFormData({ ...formData, low_stock_threshold: e.target.value })}
+                      placeholder="Ex: 5"
+                      className="w-full px-3 py-2.5 bg-white border border-amber-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all text-sm"
+                    />
+                  </div>
+                </div>
+                {formData.stock_quantity !== "" && formData.low_stock_threshold !== "" &&
+                  parseInt(formData.stock_quantity) <= parseInt(formData.low_stock_threshold) && (
+                  <div className="flex items-center gap-2 text-amber-700 bg-amber-100 rounded-lg px-3 py-2">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <p className="text-xs font-medium">Estoque atual está abaixo do limite de alerta</p>
+                  </div>
+                )}
               </div>
 
               {/* Image */}

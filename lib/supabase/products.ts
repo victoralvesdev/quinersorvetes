@@ -45,6 +45,8 @@ export async function getProducts(): Promise<Product[]> {
     available: product.available,
     featured: product.featured,
     hasVariations: productsWithVariations.has(product.id),
+    stock_quantity: product.stock_quantity ?? null,
+    low_stock_threshold: product.low_stock_threshold ?? null,
   }));
 
   return products;
@@ -102,7 +104,38 @@ export async function getProductById(id: string): Promise<Product | null> {
     available: data.available,
     featured: data.featured,
     variations: variations.length > 0 ? variations : undefined,
+    stock_quantity: data.stock_quantity ?? null,
+    low_stock_threshold: data.low_stock_threshold ?? null,
   };
+}
+
+/**
+ * Busca produtos com estoque abaixo do limite configurado
+ */
+export async function getLowStockProducts(): Promise<Product[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select(`*, categories(id, name)`)
+    .not('stock_quantity', 'is', null)
+    .not('low_stock_threshold', 'is', null);
+
+  if (error || !data) return [];
+
+  return data
+    .filter((p) => p.stock_quantity <= p.low_stock_threshold)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      price: Number(p.price),
+      image: p.image || '',
+      category: p.category_id,
+      categoryName: p.categories?.name || '',
+      available: p.available,
+      featured: p.featured,
+      stock_quantity: p.stock_quantity,
+      low_stock_threshold: p.low_stock_threshold,
+    }));
 }
 
 /**
@@ -117,6 +150,8 @@ export async function createProduct(
     category_id: string;
     available?: boolean;
     featured?: boolean;
+    stock_quantity?: number | null;
+    low_stock_threshold?: number | null;
   }
 ): Promise<Product | null> {
   const { data, error } = await supabase
@@ -130,6 +165,8 @@ export async function createProduct(
         category_id: product.category_id,
         available: product.available ?? true,
         featured: product.featured ?? false,
+        stock_quantity: product.stock_quantity ?? null,
+        low_stock_threshold: product.low_stock_threshold ?? null,
       },
     ])
     .select()
@@ -156,6 +193,8 @@ export async function updateProduct(
     category_id: string;
     available: boolean;
     featured: boolean;
+    stock_quantity: number | null;
+    low_stock_threshold: number | null;
   }>
 ): Promise<Product | null> {
   const { data, error } = await supabase

@@ -19,7 +19,11 @@ import {
   ArrowDownRight,
   Percent,
   Target,
-  Award
+  Award,
+  Archive,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { getAllOrders, Order } from "@/lib/supabase/orders";
@@ -212,6 +216,26 @@ export default function RelatoriosPage() {
 
   const topProducts = getTopProducts();
   const maxQuantity = Math.max(...topProducts.map((p) => p.quantity), 1);
+
+  // Stock stats
+  const trackedProducts = products.filter(
+    (p) => p.stock_quantity != null && p.low_stock_threshold != null
+  );
+  const outOfStock = trackedProducts.filter((p) => p.stock_quantity === 0);
+  const lowStock = trackedProducts.filter(
+    (p) => p.stock_quantity! > 0 && p.stock_quantity! <= p.low_stock_threshold!
+  );
+  const okStock = trackedProducts.filter(
+    (p) => p.stock_quantity! > p.low_stock_threshold!
+  );
+  const allStockProducts = products
+    .filter((p) => p.stock_quantity != null)
+    .sort((a, b) => {
+      const aAlert = a.low_stock_threshold != null && a.stock_quantity! <= a.low_stock_threshold ? -1 : 1;
+      const bAlert = b.low_stock_threshold != null && b.stock_quantity! <= b.low_stock_threshold ? -1 : 1;
+      if (aAlert !== bAlert) return aAlert - bAlert;
+      return (a.stock_quantity ?? 0) - (b.stock_quantity ?? 0);
+    });
 
   // Payment methods breakdown
   const getPaymentBreakdown = () => {
@@ -627,6 +651,136 @@ export default function RelatoriosPage() {
               </div>
             </div>
           </div>
+
+          {/* Stock Section */}
+          {trackedProducts.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <Archive className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-secondary-dark">Estoque</h3>
+                    <p className="text-xs text-secondary/50">
+                      {trackedProducts.length} produto{trackedProducts.length !== 1 ? 's' : ''} monitorado{trackedProducts.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Summary pills */}
+                <div className="hidden sm:flex items-center gap-2">
+                  {outOfStock.length > 0 && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-semibold rounded-full border border-red-100">
+                      <XCircle className="w-3.5 h-3.5" />
+                      {outOfStock.length} esgotado{outOfStock.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {lowStock.length > 0 && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 text-xs font-semibold rounded-full border border-amber-100">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      {lowStock.length} baixo
+                    </span>
+                  )}
+                  {okStock.length > 0 && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 text-xs font-semibold rounded-full border border-emerald-100">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {okStock.length} ok
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Summary cards */}
+              <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+                <div className="px-6 py-4 text-center">
+                  <p className="text-2xl font-bold text-red-600">{outOfStock.length}</p>
+                  <p className="text-xs text-secondary/50 mt-0.5">Esgotados</p>
+                </div>
+                <div className="px-6 py-4 text-center">
+                  <p className="text-2xl font-bold text-amber-600">{lowStock.length}</p>
+                  <p className="text-xs text-secondary/50 mt-0.5">Estoque baixo</p>
+                </div>
+                <div className="px-6 py-4 text-center">
+                  <p className="text-2xl font-bold text-emerald-600">{okStock.length}</p>
+                  <p className="text-xs text-secondary/50 mt-0.5">Em dia</p>
+                </div>
+              </div>
+
+              {/* Product list */}
+              <div className="divide-y divide-gray-50">
+                {allStockProducts.map((product) => {
+                  const isOut = product.stock_quantity === 0;
+                  const isLow = !isOut && product.low_stock_threshold != null && product.stock_quantity! <= product.low_stock_threshold!;
+                  const stockPct = product.low_stock_threshold
+                    ? Math.min(100, (product.stock_quantity! / (product.low_stock_threshold * 3)) * 100)
+                    : 100;
+
+                  return (
+                    <div key={product.id} className="px-6 py-4 flex items-center gap-4">
+                      {/* Status icon */}
+                      <div className={cn(
+                        "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+                        isOut ? "bg-red-100" : isLow ? "bg-amber-100" : "bg-emerald-100"
+                      )}>
+                        {isOut ? (
+                          <XCircle className="w-4 h-4 text-red-600" />
+                        ) : isLow ? (
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        )}
+                      </div>
+
+                      {/* Name + bar */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className="text-sm font-semibold text-secondary-dark truncate pr-2">
+                            {product.name}
+                          </p>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={cn(
+                              "text-sm font-bold",
+                              isOut ? "text-red-600" : isLow ? "text-amber-600" : "text-secondary-dark"
+                            )}>
+                              {product.stock_quantity} un.
+                            </span>
+                            {product.low_stock_threshold != null && (
+                              <span className="text-xs text-secondary/40">
+                                / limite {product.low_stock_threshold}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-500",
+                              isOut ? "bg-red-400" : isLow ? "bg-amber-400" : "bg-emerald-400"
+                            )}
+                            style={{ width: `${stockPct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {trackedProducts.length === 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                <Archive className="w-5 h-5 text-gray-400" />
+              </div>
+              <p className="text-sm font-semibold text-secondary-dark">Nenhum produto com estoque configurado</p>
+              <p className="text-xs text-secondary/50 mt-1">
+                Acesse <strong>Produtos</strong> e defina a quantidade em estoque para monitorar aqui.
+              </p>
+            </div>
+          )}
         </>
       )}
     </div>

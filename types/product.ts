@@ -26,6 +26,8 @@ export interface Product {
   featured?: boolean;
   hasVariations?: boolean; // Indica se o produto tem variações (para listagem)
   variations?: ProductVariation[]; // Subcategorias e seus itens
+  stock_quantity?: number | null;
+  low_stock_threshold?: number | null;
   promotion?: {
     discount: number;
     label: string;
