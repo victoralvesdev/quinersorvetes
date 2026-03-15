@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Plus,
@@ -68,6 +69,8 @@ function TableRowSkeleton() {
 }
 
 export default function ProdutosPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,6 +105,17 @@ export default function ProdutosPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Abre o formulário de edição se ?edit=<id> estiver na URL
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId || isLoading) return;
+    const product = products.find((p) => p.id === editId);
+    if (product) {
+      handleOpenForm(product);
+      router.replace("/gestao-admin/produtos");
+    }
+  }, [searchParams, products, isLoading]);
 
   const loadData = async () => {
     setIsLoading(true);

@@ -470,7 +470,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                           {lowStockProducts.slice(0, 5).map((product) => (
                             <Link
                               key={product.id}
-                              href="/gestao-admin/produtos"
+                              href={`/gestao-admin/produtos?edit=${product.id}`}
                               onClick={() => setIsNotificationsOpen(false)}
                               className="flex items-center gap-3 p-3 rounded-xl hover:bg-amber-50 transition-colors group"
                             >
