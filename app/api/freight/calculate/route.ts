@@ -18,7 +18,7 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 type Coords = { lat: number; lon: number; label: string };
 
 /** 0. Google Maps Geocoding API — melhor precisão, requer GOOGLE_MAPS_API_KEY */
-async function tryGoogleMaps(cep: string): Promise<Coords | null> {
+async function tryGoogleMaps(cep: string): Promise<Coords & { _source: string } | null> {
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) return null;
   try {
@@ -26,13 +26,17 @@ async function tryGoogleMaps(cep: string): Promise<Coords | null> {
     const res = await fetch(url);
     if (!res.ok) return null;
     const d = await res.json();
+    console.log('[freight] Google Maps status:', d.status, 'results:', d.results?.length);
     if (d.status !== 'OK' || !d.results?.length) return null;
     const loc = d.results[0].geometry.location;
     const lat = loc.lat;
     const lon = loc.lng;
     if (isNaN(lat) || isNaN(lon)) return null;
-    return { lat, lon, label: d.results[0].formatted_address };
-  } catch { return null; }
+    return { lat, lon, label: d.results[0].formatted_address, _source: 'google' };
+  } catch (e) {
+    console.error('[freight] Google Maps error:', e);
+    return null;
+  }
 }
 
 /** 1. AwesomeAPI — lat/lng por CEP com precisão de bairro */
@@ -111,14 +115,18 @@ async function tryViaCepNominatim(cep: string): Promise<Coords | null> {
   } catch { return null; }
 }
 
-async function getCepCoords(cep: string): Promise<Coords | null> {
-  return (
-    (await tryGoogleMaps(cep)) ??
-    (await tryAwesomeApi(cep)) ??
-    (await tryBrasilApi(cep)) ??
-    (await tryNominatimPostal(cep)) ??
-    (await tryViaCepNominatim(cep))
-  );
+async function getCepCoords(cep: string): Promise<(Coords & { _source?: string }) | null> {
+  const google = await tryGoogleMaps(cep);
+  if (google) { console.log('[freight] using google coords', google.lat, google.lon); return google; }
+  const awesome = await tryAwesomeApi(cep);
+  if (awesome) { console.log('[freight] using awesomeapi coords', awesome.lat, awesome.lon); return { ...awesome, _source: 'awesomeapi' }; }
+  const brasil = await tryBrasilApi(cep);
+  if (brasil) { console.log('[freight] using brasilapi coords', brasil.lat, brasil.lon); return { ...brasil, _source: 'brasilapi' }; }
+  const nominatim = await tryNominatimPostal(cep);
+  if (nominatim) { console.log('[freight] using nominatim coords', nominatim.lat, nominatim.lon); return { ...nominatim, _source: 'nominatim' }; }
+  const viacep = await tryViaCepNominatim(cep);
+  if (viacep) { console.log('[freight] using viacep+nominatim coords', viacep.lat, viacep.lon); return { ...viacep, _source: 'viacep' }; }
+  return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -148,11 +156,14 @@ export async function POST(request: NextRequest) {
     const zone = zones.find((z) => distance_km >= z.min_km && distance_km < z.max_km);
     const DEFAULT_FREIGHT_FEE = 5.99;
 
+    console.log('[freight] distance_km:', distance_km.toFixed(2), '| source:', (clientCoords as any)._source, '| coords:', clientCoords.lat, clientCoords.lon, '| zone:', zone?.label ?? 'none');
+
     return NextResponse.json({
       distance_km: parseFloat(distance_km.toFixed(2)),
       freight_fee: zone ? zone.price : DEFAULT_FREIGHT_FEE,
       zone_label: zone ? zone.label : 'Taxa padrão',
       address_found: clientCoords.label,
+      _debug: { source: (clientCoords as any)._source, lat: clientCoords.lat, lon: clientCoords.lon },
     });
   } catch (error) {
     console.error('[freight/calculate] Erro:', error);
