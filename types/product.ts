@@ -3,6 +3,8 @@ export interface ProductVariationItem {
   name: string;
   price: number;
   display_order: number;
+  stock_quantity?: number | null;
+  low_stock_threshold?: number | null;
 }
 
 export interface ProductVariation {

@@ -8,7 +8,7 @@ const ADMIN_PHONES = (process.env.ADMIN_WHATSAPP_NUMBER || '')
 
 export async function POST(request: NextRequest) {
   try {
-    const { productName, stockQuantity, threshold } = await request.json();
+    const { productName, variationItemName, stockQuantity, threshold } = await request.json();
 
     if (!productName || stockQuantity === undefined || threshold === undefined) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
@@ -21,9 +21,13 @@ export async function POST(request: NextRequest) {
     const stockEmoji = stockQuantity === 0 ? '🚨' : '⚠️';
     const statusText = stockQuantity === 0 ? 'ESGOTADO' : 'BAIXO';
 
+    const itemLabel = variationItemName
+      ? `${productName} — ${variationItemName}`
+      : productName;
+
     const message =
       `${stockEmoji} *ALERTA DE ESTOQUE ${statusText}*\n\n` +
-      `📦 *Produto:* ${productName}\n` +
+      `📦 *Item:* ${itemLabel}\n` +
       `📊 *Estoque atual:* ${stockQuantity} unidade${stockQuantity !== 1 ? 's' : ''}\n` +
       `🔔 *Limite configurado:* ${threshold} unidade${threshold !== 1 ? 's' : ''}\n\n` +
       `Acesse o painel admin para atualizar o estoque.`;

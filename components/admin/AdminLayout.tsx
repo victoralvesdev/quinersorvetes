@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -21,6 +21,7 @@ import {
   Tag,
   AlertTriangle,
   ExternalLink,
+  Archive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/AdminContext";
@@ -33,6 +34,7 @@ const navigation = [
   { name: "Dashboard", href: "/gestao-admin", icon: Home },
   { name: "Pedidos", href: "/gestao-admin/pedidos", icon: Package },
   { name: "Produtos", href: "/gestao-admin/produtos", icon: ShoppingCart },
+  { name: "Estoque", href: "/gestao-admin/estoque", icon: Archive },
   { name: "Cupons", href: "/gestao-admin/cupons", icon: Tag },
   { name: "Clientes", href: "/gestao-admin/clientes", icon: Users },
   { name: "Relatórios", href: "/gestao-admin/relatorios", icon: BarChart3 },
@@ -102,13 +104,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { logout } = useAdmin();
   const { settings, refreshSettings } = useSettings();
-  const { lowStockProducts, lowStockCount } = useNotifications();
+  const { lowStockProducts, lowStockVariationItems, lowStockCount } = useNotifications();
   const [pendingOrders, setPendingOrders] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [isTogglingStore, setIsTogglingStore] = useState(false);
+  const prevPendingRef = useRef<number | null>(null);
 
   const isStoreOnline = settings.store_online !== false;
 
@@ -123,6 +126,68 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   };
 
   const totalNotifications = pendingOrders + lowStockCount;
+
+  // ── Som de alerta via Web Audio API ────────────────────────────────────────
+  const playOrderAlert = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioCtx();
+
+      const playTone = (freq: number, start: number, duration: number, vol = 0.35) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(vol, start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+        osc.start(start);
+        osc.stop(start + duration);
+      };
+
+      const t = ctx.currentTime;
+      // Três notas ascendentes — ding ding ding
+      playTone(523.25, t,        0.25); // C5
+      playTone(659.25, t + 0.18, 0.25); // E5
+      playTone(783.99, t + 0.36, 0.45); // G5
+    } catch {
+      // browser sem suporte a Web Audio — ignora silenciosamente
+    }
+  }, []);
+
+  // ── Notificação do browser (funciona com aba minimizada/em segundo plano) ──
+  const showBrowserNotification = useCallback((count: number) => {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    new Notification("🍦 Novo pedido — Quiner!", {
+      body: `${count} pedido${count !== 1 ? "s" : ""} novo${count !== 1 ? "s" : ""} aguardando confirmação`,
+      icon: "/images/logotipo.png",
+      tag: "quiner-new-order",
+    });
+  }, []);
+
+  // ── Solicita permissão de notificação ao montar ────────────────────────────
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // ── Detecta pedidos novos e dispara som + notificação ─────────────────────
+  useEffect(() => {
+    if (prevPendingRef.current === null) {
+      prevPendingRef.current = pendingOrders;
+      return;
+    }
+    if (pendingOrders > prevPendingRef.current) {
+      playOrderAlert();
+      if (document.hidden || !document.hasFocus()) {
+        showBrowserNotification(pendingOrders);
+      }
+    }
+    prevPendingRef.current = pendingOrders;
+  }, [pendingOrders, playOrderAlert, showBrowserNotification]);
 
   // Fecha dropdown ao clicar fora
   useEffect(() => {
@@ -460,14 +525,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       </div>
                     )}
 
-                    {/* Estoque baixo */}
+                    {/* Estoque baixo — produtos */}
                     {lowStockProducts.length > 0 && (
-                      <div className="p-3">
+                      <div className="p-3 border-b border-gray-50">
                         <p className="text-xs font-semibold text-secondary/50 uppercase tracking-wider mb-2 px-1">
-                          Estoque baixo
+                          Produtos com estoque baixo
                         </p>
                         <div className="space-y-1">
-                          {lowStockProducts.slice(0, 5).map((product) => (
+                          {lowStockProducts.slice(0, 4).map((product) => (
                             <Link
                               key={product.id}
                               href={`/gestao-admin/produtos?edit=${product.id}`}
@@ -490,9 +555,49 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                               <ExternalLink className="w-3.5 h-3.5 text-secondary/30 group-hover:text-amber-500 transition-colors shrink-0" />
                             </Link>
                           ))}
-                          {lowStockProducts.length > 5 && (
+                          {lowStockProducts.length > 4 && (
                             <p className="text-xs text-secondary/40 text-center py-1">
-                              +{lowStockProducts.length - 5} outros produtos
+                              +{lowStockProducts.length - 4} outros
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Estoque baixo — variações */}
+                    {lowStockVariationItems.length > 0 && (
+                      <div className="p-3">
+                        <p className="text-xs font-semibold text-secondary/50 uppercase tracking-wider mb-2 px-1">
+                          Variações com estoque baixo
+                        </p>
+                        <div className="space-y-1">
+                          {lowStockVariationItems.slice(0, 4).map((item) => (
+                            <Link
+                              key={item.itemId}
+                              href="/gestao-admin/estoque"
+                              onClick={() => setIsNotificationsOpen(false)}
+                              className="flex items-center gap-3 p-3 rounded-xl hover:bg-amber-50 transition-colors group"
+                            >
+                              <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                                <Archive className="w-4 h-4 text-orange-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-secondary-dark truncate">
+                                  {item.productName}
+                                </p>
+                                <p className="text-xs text-orange-600 font-medium truncate">
+                                  {item.variationName}: {item.itemName} —{' '}
+                                  {item.stock_quantity === 0
+                                    ? 'Esgotado'
+                                    : `${item.stock_quantity} un. restantes`}
+                                </p>
+                              </div>
+                              <ExternalLink className="w-3.5 h-3.5 text-secondary/30 group-hover:text-orange-500 transition-colors shrink-0" />
+                            </Link>
+                          ))}
+                          {lowStockVariationItems.length > 4 && (
+                            <p className="text-xs text-secondary/40 text-center py-1">
+                              +{lowStockVariationItems.length - 4} outras variações
                             </p>
                           )}
                         </div>

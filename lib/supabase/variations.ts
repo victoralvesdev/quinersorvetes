@@ -52,6 +52,8 @@ export async function getProductVariations(productId: string): Promise<ProductVa
           name: item.name,
           price: Number(item.price),
           display_order: item.display_order,
+          stock_quantity: item.stock_quantity ?? null,
+          low_stock_threshold: item.low_stock_threshold ?? null,
         })),
       };
     })
@@ -109,6 +111,8 @@ export async function saveProductVariations(
       name: string;
       price: number;
       display_order: number;
+      stock_quantity: number | null;
+      low_stock_threshold: number | null;
     }> = [];
 
     variations.forEach((variation, variationIndex) => {
@@ -120,6 +124,8 @@ export async function saveProductVariations(
             name: item.name,
             price: item.price,
             display_order: item.display_order ?? itemIndex,
+            stock_quantity: item.stock_quantity ?? null,
+            low_stock_threshold: item.low_stock_threshold ?? null,
           });
         });
       }
@@ -176,6 +182,8 @@ export async function getVariationsMapForProducts(
       name: item.name,
       price: Number(item.price),
       display_order: item.display_order,
+      stock_quantity: item.stock_quantity ?? null,
+      low_stock_threshold: item.low_stock_threshold ?? null,
     });
   }
 
@@ -193,6 +201,82 @@ export async function getVariationsMapForProducts(
   }
 
   return map;
+}
+
+export interface LowStockVariationItem {
+  itemId: string;
+  itemName: string;
+  variationId: string;
+  variationName: string;
+  productId: string;
+  productName: string;
+  stock_quantity: number;
+  low_stock_threshold: number;
+}
+
+/**
+ * Busca itens de variação com estoque abaixo do limite configurado
+ */
+export async function getLowStockVariationItems(): Promise<LowStockVariationItem[]> {
+  const { data: items, error } = await supabase
+    .from('product_variation_items')
+    .select(`
+      id,
+      name,
+      stock_quantity,
+      low_stock_threshold,
+      variation_id,
+      product_variations (
+        id,
+        name,
+        product_id,
+        products (
+          id,
+          name
+        )
+      )
+    `)
+    .not('stock_quantity', 'is', null)
+    .not('low_stock_threshold', 'is', null);
+
+  if (error || !items) return [];
+
+  return items
+    .filter((item) => item.stock_quantity <= item.low_stock_threshold)
+    .map((item) => {
+      const variation = item.product_variations as any;
+      const product = variation?.products as any;
+      return {
+        itemId: item.id,
+        itemName: item.name,
+        variationId: variation?.id || '',
+        variationName: variation?.name || '',
+        productId: product?.id || '',
+        productName: product?.name || '',
+        stock_quantity: item.stock_quantity,
+        low_stock_threshold: item.low_stock_threshold,
+      };
+    });
+}
+
+/**
+ * Atualiza o estoque de um item de variação
+ */
+export async function updateVariationItemStock(
+  itemId: string,
+  stock_quantity: number | null,
+  low_stock_threshold: number | null
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('product_variation_items')
+    .update({ stock_quantity, low_stock_threshold })
+    .eq('id', itemId);
+
+  if (error) {
+    console.error('Erro ao atualizar estoque da variação:', error);
+    return false;
+  }
+  return true;
 }
 
 /**
