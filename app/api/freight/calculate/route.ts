@@ -146,11 +146,12 @@ export async function POST(request: NextRequest) {
     const distance_km = haversine(STORE_COORDS.lat, STORE_COORDS.lon, clientCoords.lat, clientCoords.lon);
     const zones = await getActiveFreightZones();
     const zone = zones.find((z) => distance_km >= z.min_km && distance_km < z.max_km);
+    const DEFAULT_FREIGHT_FEE = 5.99;
 
     return NextResponse.json({
       distance_km: parseFloat(distance_km.toFixed(2)),
-      freight_fee: zone ? zone.price : 0,
-      zone_label: zone ? zone.label : 'Fora da área configurada',
+      freight_fee: zone ? zone.price : DEFAULT_FREIGHT_FEE,
+      zone_label: zone ? zone.label : 'Taxa padrão',
       address_found: clientCoords.label,
     });
   } catch (error) {
