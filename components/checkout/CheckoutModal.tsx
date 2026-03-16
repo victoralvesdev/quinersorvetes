@@ -110,7 +110,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
     return null;
   }
 
-  const calculateFreight = async (cep: string) => {
+  const calculateFreight = async (cep: string): Promise<boolean> => {
     setIsCalculatingFreight(true);
     setFreightError(null);
     setFreightInfo(null);
@@ -126,7 +126,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
 
       if (!res.ok) {
         setFreightError(data.error || "Erro ao calcular frete");
-        return;
+        return false;
       }
 
       setFreightInfo({
@@ -134,8 +134,10 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
         label: data.zone_label,
         distance_km: data.distance_km,
       });
+      return true;
     } catch {
       setFreightError("Não foi possível calcular o frete. Tente novamente.");
+      return false;
     } finally {
       setIsCalculatingFreight(false);
     }
@@ -172,7 +174,8 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
     }
 
     if (cep) {
-      await calculateFreight(cep);
+      const ok = await calculateFreight(cep);
+      if (!ok) return; // não avança se o frete não foi calculado
     }
 
     setStep("payment");
