@@ -526,7 +526,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
               )}
               <div className="flex items-center justify-between text-sm text-secondary/70">
                 <span>Entrega</span>
-                <span className="text-green-600 font-medium">Grátis</span>
+                <span className="text-secondary/50 italic">A calcular</span>
               </div>
               <div className="h-px bg-gray-100 my-2" />
               <div className="flex items-center justify-between">
