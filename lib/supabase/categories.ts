@@ -8,6 +8,7 @@ export async function getCategories(): Promise<Category[]> {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
+    .eq('visible', true)
     .order('name', { ascending: true });
 
   if (error) {
