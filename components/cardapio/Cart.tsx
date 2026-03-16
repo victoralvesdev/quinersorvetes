@@ -14,6 +14,8 @@ import { CheckoutModal } from "@/components/checkout/CheckoutModal";
 import { CheckoutData } from "@/types/checkout";
 import { useToast } from "@/components/ui/Toast";
 import { createOrder } from "@/lib/supabase/orders";
+import { decrementProductStock } from "@/lib/supabase/products";
+import { decrementVariationItemStock } from "@/lib/supabase/variations";
 import { useRouter } from "next/navigation";
 
 interface CartProps {
@@ -295,6 +297,42 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
         coupon_code: selectedCoupon?.coupon.code || undefined,
         discount_amount: couponDiscount > 0 ? couponDiscount : undefined,
       });
+
+      // Decrementa estoque de produtos e variações em background
+      (async () => {
+        const sendStockAlert = async (productName: string, variationItemName: string | undefined, qty: number, threshold: number) => {
+          try {
+            await fetch('/api/whatsapp/low-stock-alert', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ productName, variationItemName, stockQuantity: qty, threshold }),
+            });
+          } catch { /* silencia */ }
+        };
+
+        for (const item of items) {
+          // Decrementa estoque do produto base
+          const productResult = await decrementProductStock(item.product.id, item.quantity);
+          if (productResult && productResult.threshold !== null && productResult.newStock <= productResult.threshold) {
+            await sendStockAlert(item.product.name, undefined, productResult.newStock, productResult.threshold);
+          }
+
+          // Decrementa estoque de cada variação selecionada
+          if (item.selectedVariations && item.product.variations) {
+            for (const variation of item.product.variations) {
+              const selectedItemId = item.selectedVariations[variation.id!];
+              if (!selectedItemId) continue;
+              const variationItem = variation.items.find((vi) => vi.id === selectedItemId);
+              if (!variationItem?.id) continue;
+
+              const varResult = await decrementVariationItemStock(variationItem.id, item.quantity);
+              if (varResult && varResult.threshold !== null && varResult.newStock <= varResult.threshold) {
+                await sendStockAlert(item.product.name, variationItem.name, varResult.newStock, varResult.threshold);
+              }
+            }
+          }
+        }
+      })();
 
       // Marcar cupom como usado após pedido criado com sucesso
       if (selectedCoupon) {

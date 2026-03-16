@@ -215,6 +215,25 @@ export async function updateProduct(
 /**
  * Deleta um produto
  */
+/**
+ * Decrementa atomicamente o estoque de um produto.
+ * Retorna { newStock, threshold } para checagem de alerta, ou null se sem controle.
+ */
+export async function decrementProductStock(
+  productId: string,
+  qty: number
+): Promise<{ newStock: number; threshold: number | null } | null> {
+  const { data, error } = await supabase.rpc('decrement_product_stock', {
+    p_product_id: productId,
+    p_qty: qty,
+  });
+
+  if (error || !data || data.length === 0) return null;
+  const row = data[0];
+  if (row.new_stock === null) return null;
+  return { newStock: row.new_stock, threshold: row.threshold ?? null };
+}
+
 export async function deleteProduct(id: string): Promise<boolean> {
   const { error } = await supabase
     .from('products')

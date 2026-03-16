@@ -280,6 +280,25 @@ export async function updateVariationItemStock(
 }
 
 /**
+ * Decrementa atomicamente o estoque de um item de variação.
+ * Retorna { newStock, threshold } para checagem de alerta, ou null se sem controle.
+ */
+export async function decrementVariationItemStock(
+  itemId: string,
+  qty: number
+): Promise<{ newStock: number; threshold: number | null } | null> {
+  const { data, error } = await supabase.rpc('decrement_variation_item_stock', {
+    p_item_id: itemId,
+    p_qty: qty,
+  });
+
+  if (error || !data || data.length === 0) return null;
+  const row = data[0];
+  if (row.new_stock === null) return null;
+  return { newStock: row.new_stock, threshold: row.threshold ?? null };
+}
+
+/**
  * Deleta todas as variações de um produto
  */
 export async function deleteProductVariations(productId: string): Promise<boolean> {
