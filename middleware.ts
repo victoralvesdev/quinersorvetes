@@ -35,16 +35,10 @@ export function middleware(request: NextRequest) {
     if (isAdminSubdomain) {
       return NextResponse.next();
     }
-    return NextResponse.redirect(new URL("/inauguracao", request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
-  // Página de inauguração: sempre acessível (evita loop)
-  if (pathname.startsWith("/inauguracao")) {
-    return NextResponse.next();
-  }
-
-  // Tudo o mais → inauguração
-  return NextResponse.redirect(new URL("/inauguracao", request.url));
+  return NextResponse.next();
 }
 
 export const config = {
