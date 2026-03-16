@@ -129,6 +129,11 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
         return false;
       }
 
+      if (data.out_of_range) {
+        setFreightError(data.error || "Infelizmente não realizamos delivery para essa região.");
+        return false;
+      }
+
       setFreightInfo({
         fee: data.freight_fee,
         label: data.zone_label,

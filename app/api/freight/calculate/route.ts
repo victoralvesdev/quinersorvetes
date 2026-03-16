@@ -152,11 +152,25 @@ export async function POST(request: NextRequest) {
     }
 
     const distance_km = haversine(STORE_COORDS.lat, STORE_COORDS.lon, clientCoords.lat, clientCoords.lon);
+
+    console.log('[freight] distance_km:', distance_km.toFixed(2), '| source:', (clientCoords as any)._source, '| coords:', clientCoords.lat, clientCoords.lon);
+
+    const MAX_DELIVERY_KM = 9;
+    if (distance_km > MAX_DELIVERY_KM) {
+      return NextResponse.json(
+        {
+          error: 'Infelizmente não realizamos delivery para essa região.',
+          distance_km: parseFloat(distance_km.toFixed(2)),
+          out_of_range: true,
+          _debug: { source: (clientCoords as any)._source, lat: clientCoords.lat, lon: clientCoords.lon },
+        },
+        { status: 422 }
+      );
+    }
+
     const zones = await getActiveFreightZones();
     const zone = zones.find((z) => distance_km >= z.min_km && distance_km < z.max_km);
     const DEFAULT_FREIGHT_FEE = 5.99;
-
-    console.log('[freight] distance_km:', distance_km.toFixed(2), '| source:', (clientCoords as any)._source, '| coords:', clientCoords.lat, clientCoords.lon, '| zone:', zone?.label ?? 'none');
 
     return NextResponse.json({
       distance_km: parseFloat(distance_km.toFixed(2)),
