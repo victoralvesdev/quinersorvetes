@@ -26,7 +26,6 @@ const EMPTY_FORM = {
   min_km: "",
   max_km: "",
   price: "",
-  display_order: "",
 };
 
 type FormData = typeof EMPTY_FORM;
@@ -47,7 +46,6 @@ function ZoneForm({
     min_km: initial?.min_km !== undefined ? String(initial.min_km) : "",
     max_km: initial?.max_km !== undefined ? String(initial.max_km) : "",
     price: initial?.price !== undefined ? String(initial.price) : "",
-    display_order: initial?.display_order !== undefined ? String(initial.display_order) : "",
   });
 
   const set = (field: keyof FormData, value: string) =>
@@ -60,7 +58,7 @@ function ZoneForm({
       min_km: parseFloat(form.min_km) || 0,
       max_km: parseFloat(form.max_km) || 0,
       price: parseFloat(form.price) || 0,
-      display_order: parseInt(form.display_order) || 0,
+      display_order: 0,
     });
   };
 
@@ -122,19 +120,6 @@ function ZoneForm({
             value={form.price}
             onChange={(e) => set("price", e.target.value)}
             placeholder="0.00"
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-secondary/70 mb-1">
-            Ordem de exibição
-          </label>
-          <input
-            type="number"
-            min="0"
-            value={form.display_order}
-            onChange={(e) => set("display_order", e.target.value)}
-            placeholder="0"
             className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
           />
         </div>
