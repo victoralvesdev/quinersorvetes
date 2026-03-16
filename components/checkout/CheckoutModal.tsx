@@ -352,9 +352,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
                   </div>
                   {freightInfo && (
                     <div className="flex justify-between items-center text-sm text-secondary/70">
-                      <span>
-                        Frete ({freightInfo.label} — {freightInfo.distance_km.toFixed(1)} km)
-                      </span>
+                      <span>Frete</span>
                       {freightInfo.fee === 0 ? (
                         <span className="text-emerald-600 font-medium">Grátis</span>
                       ) : (
