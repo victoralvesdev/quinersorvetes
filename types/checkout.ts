@@ -7,5 +7,6 @@ export interface CheckoutData {
   address?: AddressFormData;
   paymentMethod: PaymentMethod;
   isPaid?: boolean;
+  freightFee?: number;
 }
 

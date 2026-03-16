@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Address, AddressFormData } from "@/types/address";
@@ -23,6 +23,8 @@ interface CheckoutModalProps {
     addressId?: string;
     address?: AddressFormData;
     paymentMethod: PaymentMethod;
+    isPaid?: boolean;
+    freightFee?: number;
   }) => Promise<void>;
   finalAmount?: number;
 }
@@ -32,6 +34,12 @@ type CheckoutStep = "address" | "payment" | "pix" | "card" | "cash";
 interface ChangeData {
   needsChange: boolean;
   changeFor?: number;
+}
+
+interface FreightInfo {
+  fee: number;
+  label: string;
+  distance_km: number;
 }
 
 export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: CheckoutModalProps) {
@@ -48,8 +56,13 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
   const [isPaid, setIsPaid] = useState(false);
   const [changeData, setChangeData] = useState<ChangeData | undefined>();
 
+  const [freightInfo, setFreightInfo] = useState<FreightInfo | null>(null);
+  const [isCalculatingFreight, setIsCalculatingFreight] = useState(false);
+  const [freightError, setFreightError] = useState<string | null>(null);
+
   const getTotal = useCartStore((state) => state.getTotal());
-  const amount = finalAmount !== undefined ? finalAmount : getTotal;
+  const subtotal = finalAmount !== undefined ? finalAmount : getTotal;
+  const amount = subtotal + (freightInfo?.fee || 0);
 
   const loadAddresses = useCallback(async () => {
     if (!user) return;
@@ -59,7 +72,6 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
       const userAddresses = await getUserAddresses(user.id);
       setAddresses(userAddresses);
 
-      // Selecionar endereço padrão automaticamente se existir
       const defaultAddress = userAddresses.find((addr) => addr.is_default);
       if (defaultAddress) {
         setSelectedAddressId(defaultAddress.id);
@@ -71,14 +83,12 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
     }
   }, [user]);
 
-  // Carregar endereços quando o modal abrir e o usuário estiver autenticado
   useEffect(() => {
     if (isOpen && isAuthenticated && user) {
       loadAddresses();
     }
   }, [isOpen, isAuthenticated, user, loadAddresses]);
 
-  // Resetar estado quando o modal fechar
   useEffect(() => {
     if (!isOpen) {
       setStep("address");
@@ -90,13 +100,46 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
       setCardPaymentId(undefined);
       setIsPaid(false);
       setChangeData(undefined);
+      setFreightInfo(null);
+      setFreightError(null);
+      setIsCalculatingFreight(false);
     }
   }, [isOpen]);
 
-  // Não renderizar se não estiver autenticado ou modal fechado
   if (!isAuthenticated || !user || !isOpen) {
     return null;
   }
+
+  const calculateFreight = async (cep: string) => {
+    setIsCalculatingFreight(true);
+    setFreightError(null);
+    setFreightInfo(null);
+
+    try {
+      const res = await fetch("/api/freight/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cep }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setFreightError(data.error || "Erro ao calcular frete");
+        return;
+      }
+
+      setFreightInfo({
+        fee: data.freight_fee,
+        label: data.zone_label,
+        distance_km: data.distance_km,
+      });
+    } catch {
+      setFreightError("Não foi possível calcular o frete. Tente novamente.");
+    } finally {
+      setIsCalculatingFreight(false);
+    }
+  };
 
   const handleAddressSubmit = async (data: AddressFormData) => {
     if (!user) return;
@@ -108,7 +151,6 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
       setSelectedAddressId(createdAddress.id);
       setNewAddress(undefined);
       setShowAddressForm(false);
-      // Não precisa continuar para pagamento automaticamente, o usuário pode escolher
     } catch (error) {
       console.error("Erro ao salvar endereço:", error);
       alert("Erro ao salvar endereço. Tente novamente.");
@@ -117,27 +159,37 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
     }
   };
 
-  const handleContinueToPayment = () => {
-    if (selectedAddressId || newAddress) {
-      setStep("payment");
+  const handleContinueToPayment = async () => {
+    if (!selectedAddressId && !newAddress) return;
+
+    let cep: string | undefined;
+
+    if (selectedAddressId) {
+      const addr = addresses.find((a) => a.id === selectedAddressId);
+      cep = addr?.zip_code;
+    } else if (newAddress) {
+      cep = newAddress.zip_code;
     }
+
+    if (cep) {
+      await calculateFreight(cep);
+    }
+
+    setStep("payment");
   };
 
   const handlePaymentSelect = (method: PaymentMethod) => {
     setPaymentMethod(method);
-    // Não vai direto para PIX, espera o usuário clicar em "Continuar Pagamento"
   };
 
   const handleFinishCheckout = async (paymentCompleted?: boolean) => {
     if (!paymentMethod) return;
 
-    // Se não tiver endereço selecionado nem novo endereço, não pode finalizar
     if (!selectedAddressId && !newAddress) {
       alert("Por favor, selecione ou cadastre um endereço.");
       return;
     }
 
-    // Se tiver um endereço selecionado, busca os dados do endereço
     let addressData = newAddress;
     if (selectedAddressId && !newAddress) {
       const selectedAddress = addresses.find((addr) => addr.id === selectedAddressId);
@@ -160,9 +212,9 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
       address: addressData,
       paymentMethod,
       isPaid: paymentCompleted ?? isPaid,
+      freightFee: freightInfo?.fee || 0,
     };
 
-    // Incluir dados de troco se for pagamento na entrega
     if (changeData) {
       checkoutData.changeData = changeData;
     }
@@ -177,7 +229,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
         style={{ backgroundColor: "#FAF9F4" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header - Não mostrar quando estiver na tela PIX, Cartão ou Dinheiro */}
+        {/* Header */}
         {step !== "pix" && step !== "card" && step !== "cash" && (
           <div className="sticky top-0 border-b p-4 flex items-center justify-between z-10" style={{ backgroundColor: "#FAF9F4" }}>
             <h2 className="text-xl font-bold text-secondary">
@@ -249,18 +301,33 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
                     onSelectAddress={(id) => {
                       setSelectedAddressId(id);
                       setNewAddress(undefined);
+                      setFreightInfo(null);
+                      setFreightError(null);
                     }}
                     onAddNew={() => setShowAddressForm(true)}
                   />
 
-                  {/* Botão Continuar */}
+                  {freightError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+                      {freightError}
+                    </div>
+                  )}
+
                   {(selectedAddressId || newAddress) && (
                     <Button
                       variant="primary"
                       className="w-full"
                       onClick={handleContinueToPayment}
+                      disabled={isCalculatingFreight}
                     >
-                      Continuar para Pagamento
+                      {isCalculatingFreight ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Calculando frete...
+                        </span>
+                      ) : (
+                        "Continuar para Pagamento"
+                      )}
                     </Button>
                   )}
                 </>
@@ -275,21 +342,36 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
 
               {/* Resumo */}
               <div className="border-t pt-4 mt-4">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-lg font-semibold text-secondary">Total:</span>
-                  <span className="text-2xl font-bold text-primary">
-                    {formatCurrency(amount)}
-                  </span>
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between items-center text-sm text-secondary/70">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  {freightInfo && (
+                    <div className="flex justify-between items-center text-sm text-secondary/70">
+                      <span>
+                        Frete ({freightInfo.label} — {freightInfo.distance_km.toFixed(1)} km)
+                      </span>
+                      {freightInfo.fee === 0 ? (
+                        <span className="text-emerald-600 font-medium">Grátis</span>
+                      ) : (
+                        <span>{formatCurrency(freightInfo.fee)}</span>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-1 border-t border-gray-100">
+                    <span className="text-lg font-semibold text-secondary">Total:</span>
+                    <span className="text-2xl font-bold text-primary">
+                      {formatCurrency(amount)}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Botão Continuar - Para PIX e Cartão, vai para tela específica */}
                 {paymentMethod === "pix" ? (
                   <Button
                     variant="primary"
                     className="w-full"
-                    onClick={() => {
-                      setStep("pix");
-                    }}
+                    onClick={() => setStep("pix")}
                     disabled={!paymentMethod || isLoading}
                   >
                     {isLoading ? "Carregando..." : "Continuar Pagamento"}
@@ -298,9 +380,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
                   <Button
                     variant="primary"
                     className="w-full"
-                    onClick={() => {
-                      setStep("card");
-                    }}
+                    onClick={() => setStep("card")}
                     disabled={!paymentMethod || isLoading}
                   >
                     {isLoading ? "Carregando..." : "Continuar Pagamento"}
@@ -309,9 +389,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
                   <Button
                     variant="primary"
                     className="w-full"
-                    onClick={() => {
-                      setStep("cash");
-                    }}
+                    onClick={() => setStep("cash")}
                     disabled={!paymentMethod || isLoading}
                   >
                     {isLoading ? "Carregando..." : "Continuar"}
@@ -327,7 +405,6 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
                   </Button>
                 )}
 
-                {/* Botão Voltar */}
                 <Button
                   variant="outline"
                   className="w-full mt-2"
@@ -347,4 +424,3 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
     </div>
   );
 }
-

@@ -22,6 +22,7 @@ export interface OrderData {
   payment_id?: string;
   coupon_code?: string;
   discount_amount?: number;
+  freight_fee?: number;
   address_data?: {
     street: string;
     number: string;
@@ -47,6 +48,7 @@ export interface Order {
   payment_id?: string;
   coupon_code?: string;
   discount_amount?: number;
+  freight_fee?: number;
   created_at: string;
   updated_at: string;
 }

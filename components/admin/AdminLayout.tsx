@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   ExternalLink,
   Archive,
+  Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/AdminContext";
@@ -35,6 +36,7 @@ const navigation = [
   { name: "Pedidos", href: "/gestao-admin/pedidos", icon: Package },
   { name: "Produtos", href: "/gestao-admin/produtos", icon: ShoppingCart },
   { name: "Estoque", href: "/gestao-admin/estoque", icon: Archive },
+  { name: "Frete", href: "/gestao-admin/frete", icon: Truck },
   { name: "Cupons", href: "/gestao-admin/cupons", icon: Tag },
   { name: "Clientes", href: "/gestao-admin/clientes", icon: Users },
   { name: "Relatórios", href: "/gestao-admin/relatorios", icon: BarChart3 },

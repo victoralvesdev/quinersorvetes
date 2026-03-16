@@ -285,10 +285,11 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
       const couponDiscount = selectedCoupon ? calculateDiscount(selectedCoupon.coupon, subtotal) : 0;
       const totalFinal = Math.max(0, subtotal - couponDiscount);
 
+      const freightFee = checkoutData.freightFee || 0;
       const newOrder = await createOrder({
         user_id: user.id,
         items: orderItems,
-        total: totalFinal,
+        total: totalFinal + freightFee,
         status: "novo",
         payment_method: checkoutData.paymentMethod,
         address_id: checkoutData.addressId,
@@ -296,6 +297,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
         is_paid: checkoutData.isPaid || false,
         coupon_code: selectedCoupon?.coupon.code || undefined,
         discount_amount: couponDiscount > 0 ? couponDiscount : undefined,
+        freight_fee: freightFee,
       });
 
       // Decrementa estoque de produtos e variações em background
