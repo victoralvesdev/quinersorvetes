@@ -9,36 +9,87 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-async function getCepCoords(cep: string): Promise<{ lat: number; lon: number; label: string } | null> {
+const nominatimHeaders = { 'User-Agent': 'QuinerApp/1.0 contact@quiner.com.br' };
+
+/** 1. Tenta BrasilAPI v2 — retorna coords quando disponíveis */
+async function tryBrasilApi(cep: string): Promise<{ lat: number; lon: number; label: string } | null> {
   try {
     const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`, {
-      headers: { 'User-Agent': 'QuinerApp/1.0' },
-      next: { revalidate: 3600 },
+      headers: nominatimHeaders,
     });
-
     if (!res.ok) return null;
-    const data = await res.json();
-
-    const lat = parseFloat(data.location?.coordinates?.latitude);
-    const lon = parseFloat(data.location?.coordinates?.longitude);
-
+    const d = await res.json();
+    const lat = parseFloat(d.location?.coordinates?.latitude);
+    const lon = parseFloat(d.location?.coordinates?.longitude);
     if (isNaN(lat) || isNaN(lon)) return null;
-
-    const label = [data.street, data.neighborhood, data.city, data.state]
-      .filter(Boolean)
-      .join(', ');
-
+    const label = [d.street, d.neighborhood, d.city, d.state].filter(Boolean).join(', ');
     return { lat, lon, label };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-// Cache das coordenadas da loja em memória
+/** 2. Tenta Nominatim por CEP (postalcode) */
+async function tryNominatimByCep(cep: string): Promise<{ lat: number; lon: number; label: string } | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?postalcode=${cep}&country=BR&format=json&limit=1`;
+    const res = await fetch(url, { headers: nominatimHeaders });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d?.length) return null;
+    return { lat: parseFloat(d[0].lat), lon: parseFloat(d[0].lon), label: d[0].display_name };
+  } catch { return null; }
+}
+
+/** 3. Tenta Nominatim pelo endereço completo vindo do ViaCEP */
+async function tryNominatimByAddress(cep: string): Promise<{ lat: number; lon: number; label: string } | null> {
+  try {
+    const viaCepRes = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    if (!viaCepRes.ok) return null;
+    const v = await viaCepRes.json();
+    if (v.erro) return null;
+
+    // Tenta rua + bairro + cidade
+    const query1 = encodeURIComponent(
+      `${v.logradouro}, ${v.bairro}, ${v.localidade}, ${v.uf}, Brazil`
+    );
+    const res1 = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${query1}&format=json&limit=1`,
+      { headers: nominatimHeaders }
+    );
+    const d1 = await res1.json();
+    if (d1?.length) {
+      return { lat: parseFloat(d1[0].lat), lon: parseFloat(d1[0].lon), label: d1[0].display_name };
+    }
+
+    // Fallback: só cidade + estado
+    const query2 = encodeURIComponent(`${v.localidade}, ${v.uf}, Brazil`);
+    const res2 = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${query2}&format=json&limit=1`,
+      { headers: nominatimHeaders }
+    );
+    const d2 = await res2.json();
+    if (d2?.length) {
+      const label = [v.logradouro, v.bairro, v.localidade, v.uf].filter(Boolean).join(', ');
+      return { lat: parseFloat(d2[0].lat), lon: parseFloat(d2[0].lon), label };
+    }
+
+    return null;
+  } catch { return null; }
+}
+
+async function getCepCoords(cep: string): Promise<{ lat: number; lon: number; label: string } | null> {
+  return (
+    (await tryBrasilApi(cep)) ??
+    (await tryNominatimByCep(cep)) ??
+    (await tryNominatimByAddress(cep))
+  );
+}
+
+// Cache das coordenadas da loja
 let storeCoords: { lat: number; lon: number } | null = null;
 
 async function getStoreCoords(): Promise<{ lat: number; lon: number } | null> {
@@ -51,8 +102,7 @@ async function getStoreCoords(): Promise<{ lat: number; lon: number } | null> {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { cep } = body;
+    const { cep } = await request.json();
 
     if (!cep || typeof cep !== 'string') {
       return NextResponse.json({ error: 'CEP inválido' }, { status: 400 });
@@ -70,24 +120,19 @@ export async function POST(request: NextRequest) {
 
     if (!clientCoords) {
       return NextResponse.json(
-        { error: 'CEP não encontrado. Verifique o CEP informado.' },
+        { error: 'Não foi possível localizar o endereço. Tente informar o CEP manualmente.' },
         { status: 422 }
       );
     }
 
     if (!storeCoordsResult) {
-      return NextResponse.json(
-        { error: 'Erro ao obter coordenadas da loja.' },
-        { status: 500 }
-      );
+      // Usa coordenadas hardcoded da loja como último recurso
+      // CEP 12908-020 — Parque Brasil, Bragança Paulista, SP
+      storeCoords = { lat: -22.9523, lon: -46.5418 };
     }
 
-    const distance_km = haversine(
-      storeCoordsResult.lat,
-      storeCoordsResult.lon,
-      clientCoords.lat,
-      clientCoords.lon
-    );
+    const store = storeCoordsResult ?? storeCoords!;
+    const distance_km = haversine(store.lat, store.lon, clientCoords.lat, clientCoords.lon);
 
     const zones = await getActiveFreightZones();
     const zone = zones.find((z) => distance_km >= z.min_km && distance_km < z.max_km);
