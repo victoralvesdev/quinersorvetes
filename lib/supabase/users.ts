@@ -63,6 +63,29 @@ export async function createUser(userData: UserFormData): Promise<User> {
       throw error;
     }
 
+    // Atribuir automaticamente todos os cupons ativos ao novo usuário
+    try {
+      const now = new Date().toISOString();
+      const { data: activeCoupons } = await supabase
+        .from('coupons')
+        .select('id')
+        .eq('is_active', true)
+        .lte('valid_from', now)
+        .gte('valid_until', now);
+
+      if (activeCoupons && activeCoupons.length > 0) {
+        const userCoupons = activeCoupons.map((c) => ({
+          coupon_id: c.id,
+          user_id: data.id,
+          is_used: false,
+          assigned_at: now,
+        }));
+        await supabase.from('user_coupons').insert(userCoupons);
+      }
+    } catch {
+      // Não bloqueia o cadastro se falhar a atribuição de cupons
+    }
+
     return data;
   } catch (error) {
     console.error('Erro ao criar usuário:', error);
