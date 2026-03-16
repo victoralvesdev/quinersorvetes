@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getActiveFreightZones } from '@/lib/supabase/freight';
 
-const STORE_CEP = '12908020';
-
-// Coordenadas hardcoded da loja como último recurso
-// CEP 12908-020 — Parque Brasil, Bragança Paulista, SP
-const STORE_FALLBACK = { lat: -22.9523, lon: -46.5418 };
+// Coordenadas exatas da loja (Rua Argemiro Egidio Gonçalves, 422 — Parque Brasil, Bragança Paulista)
+const STORE_COORDS = { lat: -22.9523, lon: -46.5418 };
 
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -19,6 +16,24 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 }
 
 type Coords = { lat: number; lon: number; label: string };
+
+/** 0. Google Maps Geocoding API — melhor precisão, requer GOOGLE_MAPS_API_KEY */
+async function tryGoogleMaps(cep: string): Promise<Coords | null> {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${cep}&region=BR&key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (d.status !== 'OK' || !d.results?.length) return null;
+    const loc = d.results[0].geometry.location;
+    const lat = loc.lat;
+    const lon = loc.lng;
+    if (isNaN(lat) || isNaN(lon)) return null;
+    return { lat, lon, label: d.results[0].formatted_address };
+  } catch { return null; }
+}
 
 /** 1. AwesomeAPI — lat/lng por CEP com precisão de bairro */
 async function tryAwesomeApi(cep: string): Promise<Coords | null> {
@@ -98,24 +113,12 @@ async function tryViaCepNominatim(cep: string): Promise<Coords | null> {
 
 async function getCepCoords(cep: string): Promise<Coords | null> {
   return (
+    (await tryGoogleMaps(cep)) ??
     (await tryAwesomeApi(cep)) ??
     (await tryBrasilApi(cep)) ??
     (await tryNominatimPostal(cep)) ??
     (await tryViaCepNominatim(cep))
   );
-}
-
-// Cache das coordenadas da loja
-let storeCoords: { lat: number; lon: number } | null = null;
-
-async function getStoreCoords(): Promise<{ lat: number; lon: number }> {
-  if (storeCoords) return storeCoords;
-  const result = await getCepCoords(STORE_CEP);
-  if (result) {
-    storeCoords = { lat: result.lat, lon: result.lon };
-    return storeCoords;
-  }
-  return STORE_FALLBACK;
 }
 
 export async function POST(request: NextRequest) {
@@ -131,10 +134,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'CEP deve ter 8 dígitos' }, { status: 400 });
     }
 
-    const [clientCoords, store] = await Promise.all([
-      getCepCoords(cleanCep),
-      getStoreCoords(),
-    ]);
+    const clientCoords = await getCepCoords(cleanCep);
 
     if (!clientCoords) {
       return NextResponse.json(
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const distance_km = haversine(store.lat, store.lon, clientCoords.lat, clientCoords.lon);
+    const distance_km = haversine(STORE_COORDS.lat, STORE_COORDS.lon, clientCoords.lat, clientCoords.lon);
     const zones = await getActiveFreightZones();
     const zone = zones.find((z) => distance_km >= z.min_km && distance_km < z.max_km);
 
