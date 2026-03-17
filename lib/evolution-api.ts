@@ -306,6 +306,7 @@ export async function sendOrderMessage(
     total: number;
     paymentMethod: string;
     isPaid?: boolean;
+    isStorePickup?: boolean;
     address?: {
       street: string;
       number: string;
@@ -335,10 +336,13 @@ export async function sendOrderMessage(
       })
       .join('\n');
 
-    // Formata o endereço
-    const addressText = orderData.address
-      ? `${orderData.address.street}, ${orderData.address.number}${orderData.address.complement ? ` - ${orderData.address.complement}` : ''}\n${orderData.address.neighborhood}, ${orderData.address.city} - ${orderData.address.state}\nCEP: ${orderData.address.zip_code}${orderData.address.reference ? `\nReferência: ${orderData.address.reference}` : ''}`
-      : 'Endereço não informado';
+    // Formata o endereço / retirada
+    const addressLabel = orderData.isStorePickup ? '🏪 *Retirada na Loja:*' : '📍 *Endereço de Entrega:*';
+    const addressText = orderData.isStorePickup
+      ? 'Rua Argemiro Egidio Gonçalves, 422\nParque Brasil — CEP 12908-020'
+      : orderData.address
+        ? `${orderData.address.street}, ${orderData.address.number}${orderData.address.complement ? ` - ${orderData.address.complement}` : ''}\n${orderData.address.neighborhood}, ${orderData.address.city} - ${orderData.address.state}\nCEP: ${orderData.address.zip_code}${orderData.address.reference ? `\nReferência: ${orderData.address.reference}` : ''}`
+        : 'Endereço não informado';
 
     // Formata método de pagamento
     const paymentMethodMap: Record<string, string> = {
@@ -351,9 +355,10 @@ export async function sendOrderMessage(
     const paymentMethodText = paymentMethodMap[orderData.paymentMethod] || orderData.paymentMethod;
 
     // Status do pagamento
-    const paymentStatusText = orderData.isPaid
-      ? '✅ *PAGO*'
+    const pendingText = orderData.isStorePickup
+      ? '⏳ *Aguardando pagamento na retirada*'
       : '⏳ *Aguardando pagamento na entrega*';
+    const paymentStatusText = orderData.isPaid ? '✅ *PAGO*' : pendingText;
 
     const description = `📦 *Novo Pedido #${orderId.slice(0, 8)}*
 
@@ -367,7 +372,7 @@ ${itemsText}
 💳 *Pagamento:* ${paymentMethodText}
 ${paymentStatusText}
 
-📍 *Endereço de Entrega:*
+${addressLabel}
 ${addressText}`;
 
     // Se houver número(s) do admin, envia mensagem com comandos para confirmar/cancelar

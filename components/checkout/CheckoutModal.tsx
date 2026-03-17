@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Truck, Store, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Address, AddressFormData } from "@/types/address";
@@ -13,8 +13,18 @@ import { PaymentMethodSelector } from "./PaymentMethodSelector";
 import { PixPaymentScreen } from "./PixPaymentScreen";
 import { CardPaymentScreen } from "./CardPaymentScreen";
 import { CashPaymentScreen } from "./CashPaymentScreen";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { useCartStore } from "@/store/cartStore";
+
+const STORE_ADDRESS = {
+  street: "Rua Argemiro Egidio Gonçalves",
+  number: "422",
+  neighborhood: "Parque Brasil",
+  city: "Jacareí",
+  state: "SP",
+  zip_code: "12908020",
+  reference: "Retirada na loja",
+};
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -59,6 +69,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
   const [freightInfo, setFreightInfo] = useState<FreightInfo | null>(null);
   const [isCalculatingFreight, setIsCalculatingFreight] = useState(false);
   const [freightError, setFreightError] = useState<string | null>(null);
+  const [isStorePickup, setIsStorePickup] = useState(false);
 
   const getTotal = useCartStore((state) => state.getTotal());
   const subtotal = finalAmount !== undefined ? finalAmount : getTotal;
@@ -103,6 +114,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
       setFreightInfo(null);
       setFreightError(null);
       setIsCalculatingFreight(false);
+      setIsStorePickup(false);
     }
   }, [isOpen]);
 
@@ -167,6 +179,11 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
   };
 
   const handleContinueToPayment = async () => {
+    if (isStorePickup) {
+      setStep("payment");
+      return;
+    }
+
     if (!selectedAddressId && !newAddress) return;
 
     let cep: string | undefined;
@@ -180,7 +197,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
 
     if (cep) {
       const ok = await calculateFreight(cep);
-      if (!ok) return; // não avança se o frete não foi calculado
+      if (!ok) return;
     }
 
     setStep("payment");
@@ -193,13 +210,13 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
   const handleFinishCheckout = async (paymentCompleted?: boolean) => {
     if (!paymentMethod) return;
 
-    if (!selectedAddressId && !newAddress) {
+    if (!isStorePickup && !selectedAddressId && !newAddress) {
       alert("Por favor, selecione ou cadastre um endereço.");
       return;
     }
 
-    let addressData = newAddress;
-    if (selectedAddressId && !newAddress) {
+    let addressData = isStorePickup ? STORE_ADDRESS : newAddress;
+    if (!isStorePickup && selectedAddressId && !newAddress) {
       const selectedAddress = addresses.find((addr) => addr.id === selectedAddressId);
       if (selectedAddress) {
         addressData = {
@@ -216,11 +233,12 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
     }
 
     const checkoutData: any = {
-      addressId: selectedAddressId,
+      addressId: isStorePickup ? undefined : selectedAddressId,
       address: addressData,
       paymentMethod,
       isPaid: paymentCompleted ?? isPaid,
-      freightFee: freightInfo?.fee || 0,
+      freightFee: isStorePickup ? 0 : (freightInfo?.fee || 0),
+      isStorePickup,
     };
 
     if (changeData) {
@@ -241,7 +259,9 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
         {step !== "pix" && step !== "card" && step !== "cash" && (
           <div className="sticky top-0 border-b p-4 flex items-center justify-between z-10" style={{ backgroundColor: "#FAF9F4" }}>
             <h2 className="text-xl font-bold text-secondary">
-              {step === "address" ? "Endereço de Entrega" : "Forma de Pagamento"}
+              {step === "address"
+                ? (isStorePickup ? "Retirar na Loja" : "Entrega")
+                : "Forma de Pagamento"}
             </h2>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="w-5 h-5" />
@@ -291,52 +311,91 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
             />
           ) : step === "address" ? (
             <>
-              {showAddressForm ? (
-                <AddressForm
-                  onSubmit={handleAddressSubmit}
-                  onCancel={() => {
-                    setShowAddressForm(false);
-                    setNewAddress(undefined);
-                  }}
-                  initialData={newAddress}
-                  isLoading={isLoading}
-                />
+              {/* Toggle Delivery / Retirar na Loja — oculto temporariamente */}
+              {false && isStorePickup ? (
+                <>
+                  {/* Card com endereço da loja */}
+                  <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <MapPin className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-secondary-dark text-sm">Endereço da Loja</p>
+                        <p className="text-secondary/80 text-sm mt-0.5">
+                          Rua Argemiro Egidio Gonçalves, 422
+                        </p>
+                        <p className="text-secondary/80 text-sm">
+                          Parque Brasil — CEP 12908-020
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1 border-t border-primary/10">
+                      <Store className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <p className="text-xs text-emerald-700 font-medium">
+                        Sem taxa de entrega — Retire direto na loja!
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={handleContinueToPayment}
+                  >
+                    Continuar para Pagamento
+                  </Button>
+                </>
               ) : (
                 <>
-                  <AddressSelector
-                    addresses={addresses}
-                    selectedAddressId={selectedAddressId}
-                    onSelectAddress={(id) => {
-                      setSelectedAddressId(id);
-                      setNewAddress(undefined);
-                      setFreightInfo(null);
-                      setFreightError(null);
-                    }}
-                    onAddNew={() => setShowAddressForm(true)}
-                  />
+                  {showAddressForm ? (
+                    <AddressForm
+                      onSubmit={handleAddressSubmit}
+                      onCancel={() => {
+                        setShowAddressForm(false);
+                        setNewAddress(undefined);
+                      }}
+                      initialData={newAddress}
+                      isLoading={isLoading}
+                    />
+                  ) : (
+                    <>
+                      <AddressSelector
+                        addresses={addresses}
+                        selectedAddressId={selectedAddressId}
+                        onSelectAddress={(id) => {
+                          setSelectedAddressId(id);
+                          setNewAddress(undefined);
+                          setFreightInfo(null);
+                          setFreightError(null);
+                        }}
+                        onAddNew={() => setShowAddressForm(true)}
+                      />
 
-                  {freightError && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
-                      {freightError}
-                    </div>
-                  )}
-
-                  {(selectedAddressId || newAddress) && (
-                    <Button
-                      variant="primary"
-                      className="w-full"
-                      onClick={handleContinueToPayment}
-                      disabled={isCalculatingFreight}
-                    >
-                      {isCalculatingFreight ? (
-                        <span className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Calculando frete...
-                        </span>
-                      ) : (
-                        "Continuar para Pagamento"
+                      {freightError && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+                          {freightError}
+                        </div>
                       )}
-                    </Button>
+
+                      {(selectedAddressId || newAddress) && (
+                        <Button
+                          variant="primary"
+                          className="w-full"
+                          onClick={handleContinueToPayment}
+                          disabled={isCalculatingFreight}
+                        >
+                          {isCalculatingFreight ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Calculando frete...
+                            </span>
+                          ) : (
+                            "Continuar para Pagamento"
+                          )}
+                        </Button>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -355,7 +414,12 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
                     <span>Subtotal</span>
                     <span>{formatCurrency(subtotal)}</span>
                   </div>
-                  {freightInfo && (
+                  {isStorePickup ? (
+                    <div className="flex justify-between items-center text-sm text-secondary/70">
+                      <span>Entrega</span>
+                      <span className="text-emerald-600 font-medium">Retirada na loja</span>
+                    </div>
+                  ) : freightInfo ? (
                     <div className="flex justify-between items-center text-sm text-secondary/70">
                       <span>Frete</span>
                       {freightInfo.fee === 0 ? (
@@ -364,7 +428,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
                         <span>{formatCurrency(freightInfo.fee)}</span>
                       )}
                     </div>
-                  )}
+                  ) : null}
                   <div className="flex justify-between items-center pt-1 border-t border-gray-100">
                     <span className="text-lg font-semibold text-secondary">Total:</span>
                     <span className="text-2xl font-bold text-primary">

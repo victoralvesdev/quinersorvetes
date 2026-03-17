@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { getUserByPhone } from "@/lib/supabase/users";
 
 const loginSchema = z.object({
   phone: z
@@ -110,6 +111,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [step, setStep] = useState<Step>("form");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [notRegisteredInfo, setNotRegisteredInfo] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
@@ -132,6 +134,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     handleSubmit: handleRegisterSubmit,
     formState: { errors: registerErrors },
     reset: resetRegister,
+    setValue: setRegisterValue,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
   });
@@ -153,6 +156,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       setPendingName("");
       setError(null);
       setSuccess(null);
+      setNotRegisteredInfo(null);
       setResendCountdown(0);
     }
   }, [isOpen]);
@@ -226,9 +230,34 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }
   };
 
-  // Login flow: solicita telefone -> envia código
+  // Login flow: verifica se usuário existe -> envia código ou redireciona para cadastro
   const onLoginSubmit = async (data: LoginFormData) => {
     const cleanedPhone = data.phone.replace(/\D/g, "");
+    setIsSendingCode(true);
+    setError(null);
+    setNotRegisteredInfo(null);
+
+    try {
+      const existingUser = await getUserByPhone(cleanedPhone);
+
+      if (!existingUser) {
+        // Usuário não cadastrado: troca para tela de cadastro com telefone preenchido
+        setIsRegister(true);
+        setNotRegisteredInfo("Número não encontrado. Preencha seu nome para se cadastrar.");
+        resetRegister();
+        setRegisterValue("phone", data.phone);
+        setIsSendingCode(false);
+        return;
+      }
+    } catch {
+      // Se falhar a consulta, tenta enviar o código normalmente
+      setIsSendingCode(false);
+      setPendingPhone(cleanedPhone);
+      await sendVerificationCode(cleanedPhone);
+      return;
+    }
+
+    setIsSendingCode(false);
     setPendingPhone(cleanedPhone);
     await sendVerificationCode(cleanedPhone);
   };
@@ -460,6 +489,12 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
               <p className="text-secondary/60 text-sm">Preencha seus dados para continuar</p>
             </div>
 
+            {notRegisteredInfo && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-amber-700 text-sm text-center font-medium">{notRegisteredInfo}</p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-secondary-dark mb-2">
                 Nome completo
@@ -593,6 +628,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
               onClick={() => {
                 setIsRegister(!isRegister);
                 setError(null);
+                setNotRegisteredInfo(null);
                 resetLogin();
                 resetRegister();
               }}

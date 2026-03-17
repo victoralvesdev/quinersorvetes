@@ -359,6 +359,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
             paymentMethod: checkoutData.paymentMethod,
             isPaid: checkoutData.isPaid || false,
             address: checkoutData.address,
+            isStorePickup: checkoutData.isStorePickup || false,
           },
         });
         const opts = { method: "POST", headers: { "Content-Type": "application/json" }, body };

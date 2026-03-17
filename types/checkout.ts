@@ -8,5 +8,6 @@ export interface CheckoutData {
   paymentMethod: PaymentMethod;
   isPaid?: boolean;
   freightFee?: number;
+  isStorePickup?: boolean;
 }
 
