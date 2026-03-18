@@ -78,9 +78,14 @@ export const ProductCardDesktop: React.FC<ProductCardDesktopProps> = ({
           {product.name}
         </h3>
         <div className="flex items-center justify-between mt-auto">
-          <span className="text-lg font-bold text-primary">
-            {formatCurrency(finalPrice)}
-          </span>
+          <div className="flex flex-col">
+            {product.price_from && (
+              <span className="text-xs text-secondary/50">A partir de:</span>
+            )}
+            <span className="text-lg font-bold text-primary">
+              {formatCurrency(finalPrice)}
+            </span>
+          </div>
           <button
             onClick={handleAddToCart}
             className="bg-secondary text-white p-2.5 rounded-full shadow-md hover:bg-secondary-dark transition-colors active:scale-90"

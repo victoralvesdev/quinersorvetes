@@ -130,6 +130,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 {formatCurrency(product.price)}
               </span>
             )}
+            {product.price_from && (
+              <span className={cn("text-secondary/50", isMobile ? "text-[10px]" : "text-xs")}>
+                A partir de:
+              </span>
+            )}
             <span
               className={cn(
                 "font-bold text-primary",

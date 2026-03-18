@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Plus,
+  Copy,
   Edit,
   Trash2,
   X,
@@ -31,7 +32,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
-import { getProducts, createProduct, updateProduct, deleteProduct, getProductById } from "@/lib/supabase/products";
+import { getProducts, createProduct, updateProduct, deleteProduct, getProductById, duplicateProduct } from "@/lib/supabase/products";
 import { getCategories } from "@/lib/supabase/categories";
 import { Product, Category, ProductVariation } from "@/types/product";
 import { useToast } from "@/components/ui/Toast";
@@ -95,6 +96,7 @@ export default function ProdutosPage() {
     price: "",
     image: "",
     available: true,
+    price_from: false,
     stock_quantity: "",
     low_stock_threshold: "",
   });
@@ -254,6 +256,7 @@ export default function ProdutosPage() {
         price: formatPriceToBRL(product.price),
         image: product.image || "",
         available: product.available,
+        price_from: product.price_from ?? false,
         stock_quantity: product.stock_quantity != null ? String(product.stock_quantity) : "",
         low_stock_threshold: product.low_stock_threshold != null ? String(product.low_stock_threshold) : "",
       });
@@ -279,6 +282,7 @@ export default function ProdutosPage() {
         price: "",
         image: "",
         available: true,
+        price_from: false,
         stock_quantity: "",
         low_stock_threshold: "",
       });
@@ -297,6 +301,7 @@ export default function ProdutosPage() {
       price: "",
       image: "",
       available: true,
+      price_from: false,
       stock_quantity: "",
       low_stock_threshold: "",
     });
@@ -332,6 +337,7 @@ export default function ProdutosPage() {
           category_id: formData.category,
           image: formData.image,
           available: formData.available,
+          price_from: formData.price_from,
           stock_quantity: stockQty,
           low_stock_threshold: stockThreshold,
         });
@@ -359,6 +365,7 @@ export default function ProdutosPage() {
           category_id: formData.category,
           image: formData.image,
           available: formData.available,
+          price_from: formData.price_from,
           stock_quantity: stockQty,
           low_stock_threshold: stockThreshold,
         });
@@ -454,6 +461,21 @@ export default function ProdutosPage() {
     } catch (error) {
       console.error("Erro ao excluir produto:", error);
       showToast("Erro ao excluir produto", "error");
+    }
+  };
+
+  const handleDuplicate = async (product: Product) => {
+    try {
+      const duplicated = await duplicateProduct(product.id);
+      if (duplicated) {
+        showToast(`"${product.name}" duplicado com sucesso!`, "success");
+        loadData();
+      } else {
+        showToast("Erro ao duplicar produto", "error");
+      }
+    } catch (error) {
+      console.error("Erro ao duplicar produto:", error);
+      showToast("Erro ao duplicar produto", "error");
     }
   };
 
@@ -752,12 +774,21 @@ export default function ProdutosPage() {
                   <button
                     onClick={() => handleOpenForm(product)}
                     className="p-2 bg-white/90 hover:bg-white rounded-lg shadow-sm transition-colors"
+                    title="Editar"
                   >
                     <Edit className="w-4 h-4 text-secondary" />
                   </button>
                   <button
+                    onClick={() => handleDuplicate(product)}
+                    className="p-2 bg-white/90 hover:bg-blue-50 rounded-lg shadow-sm transition-colors"
+                    title="Duplicar"
+                  >
+                    <Copy className="w-4 h-4 text-blue-500" />
+                  </button>
+                  <button
                     onClick={() => handleDelete(product.id)}
                     className="p-2 bg-white/90 hover:bg-red-50 rounded-lg shadow-sm transition-colors"
+                    title="Excluir"
                   >
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </button>
@@ -862,6 +893,13 @@ export default function ProdutosPage() {
                           title="Editar"
                         >
                           <Edit className="w-4 h-4 text-secondary/60" />
+                        </button>
+                        <button
+                          onClick={() => handleDuplicate(product)}
+                          className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Duplicar"
+                        >
+                          <Copy className="w-4 h-4 text-blue-500" />
                         </button>
                         <button
                           onClick={() => handleDelete(product.id)}
@@ -986,6 +1024,30 @@ export default function ProdutosPage() {
                       required
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Price From Toggle */}
+              <div
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-xl cursor-pointer select-none"
+                onClick={() => setFormData({ ...formData, price_from: !formData.price_from })}
+              >
+                <div>
+                  <p className="text-sm font-semibold text-secondary-dark">Exibir "A partir de:"</p>
+                  <p className="text-xs text-secondary/50">
+                    {formData.price_from
+                      ? `Vai mostrar: A partir de: ${formData.price ? `R$ ${formData.price}` : "R$ 0,00"}`
+                      : "Vai mostrar o preço fixo normalmente"}
+                  </p>
+                </div>
+                <div className={cn(
+                  "w-11 h-6 rounded-full transition-colors duration-200 flex items-center px-0.5 flex-shrink-0",
+                  formData.price_from ? "bg-primary" : "bg-gray-300"
+                )}>
+                  <div className={cn(
+                    "w-5 h-5 bg-white rounded-full shadow transition-transform duration-200",
+                    formData.price_from ? "translate-x-5" : "translate-x-0"
+                  )} />
                 </div>
               </div>
 

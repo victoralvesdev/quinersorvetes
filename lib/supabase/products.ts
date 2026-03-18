@@ -1,6 +1,6 @@
 import { supabase } from './client';
 import { Product } from '@/types/product';
-import { getProductVariations } from './variations';
+import { getProductVariations, saveProductVariations } from './variations';
 
 /**
  * Busca todos os produtos com nome da categoria e flag de variações
@@ -47,6 +47,7 @@ export async function getProducts(): Promise<Product[]> {
     hasVariations: productsWithVariations.has(product.id),
     stock_quantity: product.stock_quantity ?? null,
     low_stock_threshold: product.low_stock_threshold ?? null,
+    price_from: product.price_from ?? false,
   }));
 
   return products;
@@ -106,6 +107,7 @@ export async function getProductById(id: string): Promise<Product | null> {
     variations: variations.length > 0 ? variations : undefined,
     stock_quantity: data.stock_quantity ?? null,
     low_stock_threshold: data.low_stock_threshold ?? null,
+    price_from: data.price_from ?? false,
   };
 }
 
@@ -152,6 +154,7 @@ export async function createProduct(
     featured?: boolean;
     stock_quantity?: number | null;
     low_stock_threshold?: number | null;
+    price_from?: boolean;
   }
 ): Promise<Product | null> {
   const { data, error } = await supabase
@@ -167,6 +170,7 @@ export async function createProduct(
         featured: product.featured ?? false,
         stock_quantity: product.stock_quantity ?? null,
         low_stock_threshold: product.low_stock_threshold ?? null,
+        price_from: product.price_from ?? false,
       },
     ])
     .select()
@@ -195,6 +199,7 @@ export async function updateProduct(
     featured: boolean;
     stock_quantity: number | null;
     low_stock_threshold: number | null;
+    price_from: boolean;
   }>
 ): Promise<Product | null> {
   const { data, error } = await supabase
@@ -232,6 +237,61 @@ export async function decrementProductStock(
   const row = data[0];
   if (row.new_stock === null) return null;
   return { newStock: row.new_stock, threshold: row.threshold ?? null };
+}
+
+/**
+ * Duplica um produto existente com todas as suas variações
+ */
+export async function duplicateProduct(id: string): Promise<Product | null> {
+  const original = await getProductById(id);
+  if (!original) return null;
+
+  const { data, error } = await supabase
+    .from('products')
+    .insert([
+      {
+        name: `Cópia de ${original.name}`,
+        description: original.description,
+        price: original.price,
+        image: original.image || null,
+        category_id: original.category,
+        available: false,
+        featured: original.featured ?? false,
+        stock_quantity: original.stock_quantity ?? null,
+        low_stock_threshold: original.low_stock_threshold ?? null,
+        price_from: original.price_from ?? false,
+      },
+    ])
+    .select()
+    .single();
+
+  if (error || !data) {
+    console.error('Erro ao duplicar produto:', error);
+    return null;
+  }
+
+  // Duplicar variações
+  const variations = await getProductVariations(id);
+  if (variations.length > 0) {
+    await saveProductVariations(
+      data.id,
+      variations.map((v) => ({
+        name: v.name,
+        required: v.required,
+        has_price: v.has_price,
+        display_order: v.display_order,
+        items: v.items.map((item) => ({
+          name: item.name,
+          price: item.price,
+          display_order: item.display_order,
+          stock_quantity: item.stock_quantity ?? null,
+          low_stock_threshold: item.low_stock_threshold ?? null,
+        })),
+      }))
+    );
+  }
+
+  return data;
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {

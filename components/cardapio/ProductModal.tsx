@@ -231,15 +231,20 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             </div>
 
             {/* Price */}
-            <div className="flex items-baseline gap-3">
-              <span className="text-2xl md:text-3xl font-bold text-primary">
-                {formatCurrency(unitPrice)}
-              </span>
-              {displayProduct.promotion && (
-                <span className="text-base text-secondary/40 line-through">
-                  {formatCurrency(displayProduct.price)}
-                </span>
+            <div className="flex flex-col gap-0.5">
+              {displayProduct.price_from && (
+                <span className="text-sm text-secondary/50">A partir de:</span>
               )}
+              <div className="flex items-baseline gap-3">
+                <span className="text-2xl md:text-3xl font-bold text-primary">
+                  {formatCurrency(unitPrice)}
+                </span>
+                {displayProduct.promotion && (
+                  <span className="text-base text-secondary/40 line-through">
+                    {formatCurrency(displayProduct.price)}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Variations */}
