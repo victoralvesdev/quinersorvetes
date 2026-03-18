@@ -1033,7 +1033,7 @@ export default function ProdutosPage() {
                 onClick={() => setFormData({ ...formData, price_from: !formData.price_from })}
               >
                 <div>
-                  <p className="text-sm font-semibold text-secondary-dark">Exibir "A partir de:"</p>
+                  <p className="text-sm font-semibold text-secondary-dark">Exibir &quot;A partir de:&quot;</p>
                   <p className="text-xs text-secondary/50">
                     {formData.price_from
                       ? `Vai mostrar: A partir de: ${formData.price ? `R$ ${formData.price}` : "R$ 0,00"}`
