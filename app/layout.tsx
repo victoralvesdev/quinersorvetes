@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { HeaderWrapper } from "@/components/layout/HeaderWrapper";
@@ -13,9 +13,6 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = {
-  viewportFit: "cover",
-};
 
 export default function RootLayout({
   children,

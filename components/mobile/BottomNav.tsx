@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Home, ClipboardList, ShoppingBag, User } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useCartContext } from "@/contexts/CartContext";
@@ -15,32 +15,9 @@ export const BottomNav = () => {
   const itemCount = useCartStore((state) => state.items.length);
   const { isAuthenticated, user } = useAuth();
   const { couponsCount } = useCoupons();
-  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
-
-  // Fix Chrome Android dynamic toolbar gap using visualViewport API
-  useEffect(() => {
-    const vv = typeof window !== "undefined" ? window.visualViewport : null;
-    if (!vv) return;
-
-    const updateBottom = () => {
-      const nav = navRef.current;
-      if (!nav) return;
-      const offsetBottom = window.innerHeight - vv.height - vv.offsetTop;
-      nav.style.bottom = Math.max(0, offsetBottom) + "px";
-    };
-
-    vv.addEventListener("resize", updateBottom);
-    vv.addEventListener("scroll", updateBottom);
-    updateBottom();
-
-    return () => {
-      vv.removeEventListener("resize", updateBottom);
-      vv.removeEventListener("scroll", updateBottom);
-    };
   }, []);
 
   const { openCart, isCartOpen, closeCart } = useCartContext();
@@ -116,7 +93,7 @@ export const BottomNav = () => {
   };
 
   return (
-    <nav ref={navRef} className="fixed bottom-0 left-0 right-0 z-[110] safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-[110] safe-area-bottom will-change-transform">
       {/* Background with blur */}
       <div className="absolute inset-0 bg-white/90 backdrop-blur-lg border-t border-gray-200/50" />
 
