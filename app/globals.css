@@ -47,6 +47,11 @@ a {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Safe area for top header on mobile (notch/status bar) */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
 /* Remove background from Next.js Image component */
 img[src*="logotipo"] {
   background: transparent !important;

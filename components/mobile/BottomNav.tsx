@@ -93,7 +93,7 @@ export const BottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[110] safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-[110] safe-area-bottom will-change-transform">
       {/* Background with blur */}
       <div className="absolute inset-0 bg-white/90 backdrop-blur-lg border-t border-gray-200/50" />
 
