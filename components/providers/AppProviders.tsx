@@ -7,6 +7,7 @@ import { LoginModalProvider } from "@/contexts/LoginModalContext";
 import { CouponProvider } from "@/contexts/CouponContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { ToastProvider } from "@/components/ui/Toast";
+import { CartAddedNotification } from "@/components/ui/CartAddedNotification";
 import { BrowserPolyfill } from "@/components/polyfills/BrowserPolyfill";
 import { CartHydration } from "@/components/cart/CartHydration";
 
@@ -21,6 +22,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
                 <LoginModalProvider>
                   <BrowserPolyfill />
                   <CartHydration />
+                  <CartAddedNotification />
                   {children}
                 </LoginModalProvider>
               </CouponProvider>

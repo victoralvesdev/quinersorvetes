@@ -4,6 +4,7 @@ import { CartItem, Product } from "@/types/product";
 
 interface CartStore {
   items: CartItem[];
+  lastAddedProduct: Product | null;
   addItem: (product: Product, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
@@ -11,13 +12,17 @@ interface CartStore {
   getTotal: () => number;
   getItemCount: () => number;
   setItems: (items: CartItem[]) => void;
+  clearLastAdded: () => void;
 }
 
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      
+      lastAddedProduct: null,
+
+      clearLastAdded: () => set({ lastAddedProduct: null }),
+
       addItem: (product, quantity = 1) => {
         const state = get();
         // Se o produto tem variações selecionadas, criar uma chave única
@@ -55,7 +60,7 @@ export const useCartStore = create<CartStore>()(
           }];
         }
 
-        set({ items: newItems });
+        set({ items: newItems, lastAddedProduct: product });
       },
 
       removeItem: (productId) => {
