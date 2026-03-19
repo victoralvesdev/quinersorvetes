@@ -13,7 +13,7 @@ const banners: PromoBannerDesktopProps[] = [
   {
     title: "MILKSHAKES QUINER",
     subtitle: "A combinação perfeita de sabor e cremosidade que você merece.",
-    image: "/images/promo/banner-1-desktop.jpg",
+    image: "/images/promo/Desktop-Milkshakes.jpg",
   },
   {
     title: "SABORES DE VERÃO",

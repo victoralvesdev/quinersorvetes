@@ -13,7 +13,7 @@ const banners: PromoBannerProps[] = [
   {
     title: "NOVIDADE IRRESISTÍVEL",
     subtitle: "Strawberry cheesecake",
-    image: "/images/promo/banner-1.jpg",
+    image: "/images/promo/Mobile-Milkshakes.jpg",
   },
   {
     title: "SORVETES ARTESANAIS",
