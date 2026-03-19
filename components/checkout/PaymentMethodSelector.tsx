@@ -2,7 +2,7 @@
 
 import { PaymentMethod } from "@/types/checkout";
 import { Card } from "@/components/ui/Card";
-import { CreditCard, Smartphone, DollarSign, Check } from "lucide-react";
+import { CreditCard, Smartphone, Check } from "lucide-react";
 
 interface PaymentMethodSelectorProps {
   selectedMethod?: PaymentMethod;
@@ -32,12 +32,6 @@ const paymentMethods: {
     label: "PIX",
     description: "Pagamento instantâneo",
     icon: <Smartphone className="w-5 h-5" />,
-  },
-  {
-    value: "cash_on_delivery",
-    label: "Pagar na Entrega",
-    description: "Dinheiro ou cartão na entrega",
-    icon: <DollarSign className="w-5 h-5" />,
   },
 ];
 
