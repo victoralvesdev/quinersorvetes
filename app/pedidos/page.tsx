@@ -485,7 +485,8 @@ export default function PedidosPage() {
   return (
     <>
       {/* Mobile Layout */}
-      <div className="min-h-screen pb-24 md:hidden bg-background" style={{ paddingTop: "80px" }}>
+      <div className="fixed inset-0 md:hidden bg-background flex flex-col z-0" style={{ paddingTop: "80px" }}>
+        <div className="flex-1 overflow-y-auto">
         {/* Header */}
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-center justify-between mb-4">
@@ -552,6 +553,7 @@ export default function PedidosPage() {
           )}
         </div>
 
+        </div>
         <BottomNav />
       </div>
 

@@ -314,51 +314,53 @@ export default function Home() {
   return (
     <>
       {/* Mobile Layout */}
-      <div className="min-h-screen pb-24 md:hidden bg-background" style={{ paddingTop: "80px" }}>
-        {/* Banner */}
-        <div className="pt-4 pb-2 mx-4">
-          <div className="relative w-full overflow-hidden rounded-2xl">
-            <Image
-              src="/images/promo/Mobile Site.jpg"
-              alt="Banner Quiner"
-              width={600}
-              height={678}
-              className="w-full h-auto object-cover"
-              priority
-            />
+      <div className="fixed inset-0 md:hidden bg-background flex flex-col z-0" style={{ paddingTop: "80px" }}>
+        <div className="flex-1 overflow-y-auto">
+          {/* Banner */}
+          <div className="pt-4 pb-2 mx-4">
+            <div className="relative w-full overflow-hidden rounded-2xl">
+              <Image
+                src="/images/promo/Mobile-Milkshakes.jpg"
+                alt="Banner Quiner"
+                width={600}
+                height={678}
+                className="w-full h-auto object-cover"
+                priority
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Categories */}
-        <CategoryNav
-          categories={categories}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-          variant="mobile"
-        />
+          {/* Categories */}
+          <CategoryNav
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+            variant="mobile"
+          />
 
-        {/* Products */}
-        <div className="px-4 pb-4">
-          {isLoading ? (
-            <div className="grid grid-cols-2 gap-3">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <ProductCardSkeleton key={i} variant="mobile" />
-              ))}
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  variant="mobile"
-                  onViewDetails={setSelectedProduct}
-                />
-              ))}
-            </div>
-          )}
+          {/* Products */}
+          <div className="px-4 pb-4">
+            {isLoading ? (
+              <div className="grid grid-cols-2 gap-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <ProductCardSkeleton key={i} variant="mobile" />
+                ))}
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    variant="mobile"
+                    onViewDetails={setSelectedProduct}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <BottomNav />
@@ -370,7 +372,7 @@ export default function Home() {
           {/* Banner */}
           <div className="relative w-full overflow-hidden rounded-2xl mb-8">
             <Image
-              src="/images/promo/Banner site.jpg"
+              src="/images/promo/Desktop-Milkshakes.jpg"
               alt="Banner Quiner"
               width={1600}
               height={678}

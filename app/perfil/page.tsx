@@ -590,7 +590,8 @@ export default function PerfilPage() {
   return (
     <>
       {/* Mobile Layout */}
-      <div className="min-h-screen pb-24 md:hidden bg-background" style={{ paddingTop: "60px" }}>
+      <div className="fixed inset-0 md:hidden bg-background flex flex-col z-0" style={{ paddingTop: "60px" }}>
+        <div className="flex-1 overflow-y-auto">
         {!isAuthenticated ? (
           <LoginPrompt onLogin={openLoginModal} />
         ) : user ? (
@@ -662,6 +663,7 @@ export default function PerfilPage() {
           </>
         ) : null}
 
+        </div>
         <BottomNav />
       </div>
 
