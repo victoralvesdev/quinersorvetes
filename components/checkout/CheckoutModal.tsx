@@ -15,6 +15,7 @@ import { CardPaymentScreen } from "./CardPaymentScreen";
 import { CashPaymentScreen } from "./CashPaymentScreen";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useCartStore } from "@/store/cartStore";
+import { useCoupons } from "@/contexts/CouponContext";
 
 const STORE_ADDRESS = {
   street: "Rua Argemiro Egidio Gonçalves",
@@ -73,7 +74,10 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
 
   const getTotal = useCartStore((state) => state.getTotal());
   const subtotal = finalAmount !== undefined ? finalAmount : getTotal;
-  const amount = subtotal + (freightInfo?.fee || 0);
+  const { selectedCoupon } = useCoupons();
+  const isFreeShipping = selectedCoupon?.coupon.discount_type === 'free_shipping';
+  const effectiveFreightFee = isFreeShipping ? 0 : (freightInfo?.fee || 0);
+  const amount = subtotal + effectiveFreightFee;
 
   const loadAddresses = useCallback(async () => {
     if (!user) return;
@@ -237,7 +241,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
       address: addressData,
       paymentMethod,
       isPaid: paymentCompleted ?? isPaid,
-      freightFee: isStorePickup ? 0 : (freightInfo?.fee || 0),
+      freightFee: isStorePickup ? 0 : effectiveFreightFee,
       isStorePickup,
     };
 
@@ -422,7 +426,9 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
                   ) : freightInfo ? (
                     <div className="flex justify-between items-center text-sm text-secondary/70">
                       <span>Frete</span>
-                      {freightInfo.fee === 0 ? (
+                      {isFreeShipping ? (
+                        <span className="text-emerald-600 font-medium">Grátis 🎉 (cupom)</span>
+                      ) : freightInfo.fee === 0 ? (
                         <span className="text-emerald-600 font-medium">Grátis</span>
                       ) : (
                         <span>{formatCurrency(freightInfo.fee)}</span>

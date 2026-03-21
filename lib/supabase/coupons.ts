@@ -2,27 +2,24 @@ import { supabase } from './client';
 import { Coupon, UserCoupon, CouponFormData } from '@/types/coupon';
 
 /**
- * Busca todos os cupons disponíveis para um usuário
+ * Busca todos os cupons disponíveis para um usuário.
+ * Inclui automaticamente cupons globais de frete grátis (sem atribuição individual).
  */
 export async function getUserCoupons(userId: string): Promise<UserCoupon[]> {
+  const now = new Date().toISOString();
+
   try {
+    // Cupons atribuídos ao usuário
     const { data, error } = await supabase
       .from('user_coupons')
-      .select(`
-        *,
-        coupon:coupons(*)
-      `)
+      .select(`*, coupon:coupons(*)`)
       .eq('user_id', userId)
       .eq('is_used', false)
       .order('assigned_at', { ascending: false });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    // Filtrar apenas cupons válidos e ativos
-    const now = new Date().toISOString();
-    const validCoupons = (data || []).filter(uc => {
+    const validUserCoupons = (data || []).filter(uc => {
       const coupon = uc.coupon;
       return coupon &&
              coupon.is_active &&
@@ -30,7 +27,28 @@ export async function getUserCoupons(userId: string): Promise<UserCoupon[]> {
              coupon.valid_until >= now;
     });
 
-    return validCoupons;
+    // Cupons globais de frete grátis (disponíveis para todos os usuários)
+    const { data: globalData } = await supabase
+      .from('coupons')
+      .select('*')
+      .eq('discount_type', 'free_shipping')
+      .eq('is_active', true)
+      .lte('valid_from', now)
+      .gte('valid_until', now);
+
+    const assignedIds = new Set(validUserCoupons.map(uc => uc.coupon_id));
+    const globalCoupons: UserCoupon[] = (globalData || [])
+      .filter(c => !assignedIds.has(c.id))
+      .map(c => ({
+        id: `global_${c.id}`,
+        user_id: userId,
+        coupon_id: c.id,
+        coupon: c,
+        is_used: false,
+        assigned_at: c.valid_from,
+      }));
+
+    return [...validUserCoupons, ...globalCoupons];
   } catch (error) {
     console.error('Erro ao buscar cupons do usuário:', error);
     throw error;

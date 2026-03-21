@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Plus, Minus, ShoppingBag, Trash2, IceCream, ArrowRight, Store, Tag, CheckCircle } from "lucide-react";
+import { X, Plus, Minus, ShoppingBag, Trash2, IceCream, ArrowRight, Store, Tag, CheckCircle, Truck } from "lucide-react";
 import Image from "next/image";
 import { useCartStore } from "@/store/cartStore";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -224,6 +224,16 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
     };
   }, [isOpen, onClose]);
 
+  // Auto-deselect free_shipping coupon when cart drops below minimum
+  useEffect(() => {
+    if (!selectedCoupon || selectedCoupon.coupon.discount_type !== 'free_shipping') return;
+    const minValue = selectedCoupon.coupon.min_order_value || 0;
+    if (minValue > 0 && getTotal() < minValue) {
+      selectCoupon(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
   const handleUpdateQuantity = (index: number, delta: number) => {
     const state = useCartStore.getState();
     const newItems = state.items
@@ -339,7 +349,10 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
       // Marcar cupom como usado após pedido criado com sucesso
       if (selectedCoupon) {
         try {
-          await markUserCouponAsUsed(selectedCoupon.id);
+          // Cupons globais (id começa com "global_") não têm registro em user_coupons
+          if (!selectedCoupon.id.startsWith('global_')) {
+            await markUserCouponAsUsed(selectedCoupon.id);
+          }
           await incrementCouponUsage(selectedCoupon.coupon.id);
           selectCoupon(null);
         } catch (couponError) {
@@ -398,7 +411,10 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
 
   const itemCount = getItemCount();
   const total = getTotal();
-  const discount = selectedCoupon ? calculateDiscount(selectedCoupon.coupon, total) : 0;
+  const isFreeShippingCoupon = selectedCoupon?.coupon.discount_type === 'free_shipping';
+  const discount = selectedCoupon && !isFreeShippingCoupon
+    ? calculateDiscount(selectedCoupon.coupon, total)
+    : 0;
   const finalTotal = Math.max(0, total - discount);
 
   return (
@@ -469,15 +485,70 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
         {/* Footer */}
         {items.length > 0 && (
           <div className="flex-shrink-0 border-t border-gray-100 bg-white p-5 pb-24 md:pb-5 space-y-4">
-            {/* Cupons disponíveis */}
-            {isAuthenticated && coupons.length > 0 && (
+            {/* Banner de Frete Grátis */}
+            {isAuthenticated && (() => {
+              const fsc = coupons.find(uc => uc.coupon.discount_type === 'free_shipping');
+              if (!fsc) return null;
+              const minValue = fsc.coupon.min_order_value || 0;
+              const isEligible = !minValue || total >= minValue;
+              const progress = minValue > 0 ? Math.min(100, (total / minValue) * 100) : 100;
+              const remaining = Math.max(0, minValue - total);
+              const isActive = selectedCoupon?.id === fsc.id;
+              return (
+                <div className={cn(
+                  "rounded-xl border-2 p-3 transition-all duration-300",
+                  isActive
+                    ? "border-emerald-400 bg-emerald-50"
+                    : isEligible
+                    ? "border-emerald-200 bg-emerald-50/60"
+                    : "border-dashed border-secondary/20 bg-gray-50/50"
+                )}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Truck className={cn("w-4 h-4 flex-shrink-0", isEligible ? "text-emerald-600" : "text-secondary/40")} />
+                    <span className={cn("text-sm font-semibold flex-1", isEligible ? "text-emerald-700" : "text-secondary/60")}>
+                      {isActive ? "Frete grátis ativado! 🎉" : isEligible ? "Frete grátis disponível!" : "Frete grátis"}
+                    </span>
+                    {isEligible && (
+                      <button
+                        onClick={() => selectCoupon(isActive ? null : fsc)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs font-bold transition-all",
+                          isActive ? "bg-emerald-500 text-white" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                        )}
+                      >
+                        {isActive ? "✓ Ativo" : "Ativar"}
+                      </button>
+                    )}
+                  </div>
+                  {minValue > 0 && (
+                    <>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1.5 overflow-hidden">
+                        <div
+                          className={cn("h-full rounded-full transition-all duration-500", isEligible ? "bg-emerald-500" : "bg-primary")}
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-secondary/60">
+                        {isEligible
+                          ? `Pedido atingiu o mínimo de ${formatCurrency(minValue)} — frete grátis!`
+                          : `Adicione mais ${formatCurrency(remaining)} em produtos para frete grátis`
+                        }
+                      </p>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Cupons de desconto */}
+            {isAuthenticated && coupons.some(uc => uc.coupon.discount_type !== 'free_shipping') && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm font-medium text-secondary/70">
                   <Tag className="w-4 h-4" />
                   <span>Cupons disponíveis</span>
                 </div>
                 <div className="space-y-2">
-                  {coupons.map((uc) => {
+                  {coupons.filter(uc => uc.coupon.discount_type !== 'free_shipping').map((uc) => {
                     const isSelected = selectedCoupon?.id === uc.id;
                     const couponDiscount = calculateDiscount(uc.coupon, total);
                     return (
@@ -527,7 +598,10 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
               )}
               <div className="flex items-center justify-between text-sm text-secondary/70">
                 <span>Entrega</span>
-                <span className="text-secondary/50 italic">A calcular</span>
+                {isFreeShippingCoupon
+                  ? <span className="text-emerald-600 font-semibold flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> Grátis</span>
+                  : <span className="text-secondary/50 italic">A calcular</span>
+                }
               </div>
               <div className="h-px bg-gray-100 my-2" />
               <div className="flex items-center justify-between">
