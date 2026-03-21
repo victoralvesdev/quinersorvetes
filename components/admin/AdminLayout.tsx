@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Archive,
   Truck,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/AdminContext";
@@ -30,6 +31,8 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import { updateSetting } from "@/lib/supabase/settings";
 import { getAllOrders } from "@/lib/supabase/orders";
+import { StoreHoursModal } from "./StoreHoursModal";
+import { StoreHours } from "@/types/settings";
 
 const navigation = [
   { name: "Dashboard", href: "/gestao-admin", icon: Home },
@@ -110,12 +113,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [pendingOrders, setPendingOrders] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isStoreHoursOpen, setIsStoreHoursOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [isTogglingStore, setIsTogglingStore] = useState(false);
   const prevPendingRef = useRef<number | null>(null);
 
   const isStoreOnline = settings.store_online !== false;
+
+  const isStoreOnlineRef = useRef(isStoreOnline);
+  isStoreOnlineRef.current = isStoreOnline;
+  const storeHoursRef = useRef(settings.store_hours);
+  storeHoursRef.current = settings.store_hours;
 
   const handleToggleStore = async () => {
     setIsTogglingStore(true);
@@ -231,6 +240,44 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     const interval = setInterval(updateTime, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Auto open/close based on store_hours schedule (Brasília timezone)
+  useEffect(() => {
+    const DAY_KEYS: (keyof Omit<StoreHours, "auto">)[] = [
+      "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
+    ];
+
+    const checkSchedule = async () => {
+      const storeHours = storeHoursRef.current;
+      if (!storeHours?.auto) return;
+
+      const brasiliaStr = new Date().toLocaleString("en-US", {
+        timeZone: "America/Sao_Paulo",
+      });
+      const brasiliaDate = new Date(brasiliaStr);
+      const h = String(brasiliaDate.getHours()).padStart(2, "0");
+      const m = String(brasiliaDate.getMinutes()).padStart(2, "0");
+      const currentTimeBrasilia = `${h}:${m}`;
+
+      const dayKey = DAY_KEYS[brasiliaDate.getDay()];
+      const daySchedule = storeHours[dayKey];
+      if (!daySchedule?.enabled) return;
+
+      const online = isStoreOnlineRef.current;
+
+      if (currentTimeBrasilia === daySchedule.open && !online) {
+        await updateSetting("store_online", true);
+        await refreshSettings();
+      } else if (currentTimeBrasilia === daySchedule.close && online) {
+        await updateSetting("store_online", false);
+        await refreshSettings();
+      }
+    };
+
+    checkSchedule();
+    const interval = setInterval(checkSchedule, 30000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentPage = navigation.find(item => item.href === pathname)?.name || "Dashboard";
 
@@ -464,6 +511,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 </span>
               </button>
 
+              {/* Store Hours Button */}
+              <button
+                onClick={() => setIsStoreHoursOpen(true)}
+                className={cn(
+                  "p-2.5 rounded-xl border transition-all duration-200",
+                  settings.store_hours?.auto
+                    ? "bg-violet-50 border-violet-200 text-violet-600 hover:bg-violet-100"
+                    : "bg-gray-50 border-gray-200 text-secondary/60 hover:bg-gray-100"
+                )}
+                title="Horários de funcionamento"
+              >
+                <Clock className="w-4 h-4" />
+              </button>
+
               {/* Current Time */}
               <div className="hidden lg:flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl">
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -641,6 +702,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+
+      {/* Store Hours Modal */}
+      {isStoreHoursOpen && (
+        <StoreHoursModal
+          storeHours={settings.store_hours}
+          onClose={() => setIsStoreHoursOpen(false)}
+          onSaved={(hours) => {
+            refreshSettings();
+          }}
+        />
+      )}
     </div>
   );
 }

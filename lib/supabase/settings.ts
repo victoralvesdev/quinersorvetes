@@ -122,6 +122,28 @@ export async function updateSettings(
 }
 
 /**
+ * Upsert a single setting (insert if not exists, update if exists)
+ */
+export async function upsertSetting(
+  key: string,
+  value: unknown,
+  category: "appearance" | "social" | "contact" | "footer" | "integrations" = "appearance",
+  isPublic = true
+): Promise<boolean> {
+  const { error } = await supabase.from("settings").upsert(
+    { key, value, category, is_public: isPublic },
+    { onConflict: "key" }
+  );
+
+  if (error) {
+    console.error(`Error upserting setting ${key}:`, error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Get settings by category
  */
 export async function getSettingsByCategory(

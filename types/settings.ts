@@ -5,6 +5,23 @@ export interface SocialMediaSetting {
   url: string;
 }
 
+export interface DaySchedule {
+  enabled: boolean;
+  open: string;  // "HH:MM"
+  close: string; // "HH:MM"
+}
+
+export interface StoreHours {
+  auto: boolean; // Whether auto open/close is active
+  monday: DaySchedule;
+  tuesday: DaySchedule;
+  wednesday: DaySchedule;
+  thursday: DaySchedule;
+  friday: DaySchedule;
+  saturday: DaySchedule;
+  sunday: DaySchedule;
+}
+
 export interface FooterLink {
   label: string;
   url: string;
@@ -33,6 +50,7 @@ export interface SettingRecord {
 export interface PublicSettings {
   // Store
   store_online: boolean;
+  store_hours: StoreHours;
 
   // Appearance
   header_color: string;
@@ -75,9 +93,21 @@ export interface SettingUpdate {
   value: unknown;
 }
 
+const DEFAULT_DAY_SCHEDULE: DaySchedule = { enabled: true, open: "08:00", close: "22:00" };
+
 // Default public settings (fallback values)
 export const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
   store_online: true,
+  store_hours: {
+    auto: false,
+    monday: { ...DEFAULT_DAY_SCHEDULE },
+    tuesday: { ...DEFAULT_DAY_SCHEDULE },
+    wednesday: { ...DEFAULT_DAY_SCHEDULE },
+    thursday: { ...DEFAULT_DAY_SCHEDULE },
+    friday: { ...DEFAULT_DAY_SCHEDULE },
+    saturday: { ...DEFAULT_DAY_SCHEDULE },
+    sunday: { enabled: false, open: "08:00", close: "22:00" },
+  },
   header_color: "#a36e6c",
   footer_color: "#FAF9F4",
   primary_color: "#a36e6c",
