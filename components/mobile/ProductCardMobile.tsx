@@ -1,11 +1,14 @@
 "use client";
 
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Star } from "lucide-react";
 import Image from "next/image";
 import { Product } from "@/types/product";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/store/cartStore";
 import { cn } from "@/lib/utils";
+import { useFavorites } from "@/contexts/FavoritesContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLoginModal } from "@/contexts/LoginModalContext";
 
 interface ProductCardMobileProps {
   product: Product;
@@ -17,10 +20,20 @@ export const ProductCardMobile: React.FC<ProductCardMobileProps> = ({
   onViewDetails,
 }) => {
   const addItem = useCartStore((state) => state.addItem);
+  const { isAuthenticated } = useAuth();
+  const { openModal: openLoginModal } = useLoginModal();
+  const { isFavorited, toggleFavorite } = useFavorites();
+  const fav = isFavorited(product.id);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
     addItem(product);
+  };
+
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isAuthenticated) { openLoginModal(); return; }
+    toggleFavorite(product);
   };
 
   const finalPrice = product.promotion
@@ -50,6 +63,18 @@ export const ProductCardMobile: React.FC<ProductCardMobileProps> = ({
             NOVIDADE
           </div>
         )}
+        {/* Favorite Button */}
+        <button
+          onClick={handleFavorite}
+          className={cn(
+            "absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-all duration-200",
+            fav
+              ? "bg-amber-400 text-white scale-110"
+              : "bg-white/80 backdrop-blur-sm text-secondary/40"
+          )}
+        >
+          <Star className={cn("w-3.5 h-3.5", fav && "fill-current")} />
+        </button>
         {product.image ? (
           <Image
             src={product.image}

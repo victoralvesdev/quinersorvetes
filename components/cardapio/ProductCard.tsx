@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Check } from "lucide-react";
+import { Plus, Check, Star } from "lucide-react";
 import Image from "next/image";
 import { Product } from "@/types/product";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useCartStore } from "@/store/cartStore";
+import { useFavorites } from "@/contexts/FavoritesContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLoginModal } from "@/contexts/LoginModalContext";
 
 interface ProductCardProps {
   product: Product;
@@ -20,6 +23,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const addItem = useCartStore((state) => state.addItem);
   const [isAdded, setIsAdded] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const { openModal: openLoginModal } = useLoginModal();
+  const { isFavorited, toggleFavorite } = useFavorites();
+  const fav = isFavorited(product.id);
+
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isAuthenticated) { openLoginModal(); return; }
+    toggleFavorite(product);
+  };
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -69,12 +82,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Promotion Badge */}
         {product.promotion && (
-          <div className="absolute top-3 right-3 z-10">
+          <div className={cn("absolute z-10", isMobile ? "top-2 right-2" : "top-3 right-12")}>
             <span className="px-2.5 py-1 bg-gradient-to-r from-red-500 to-rose-500 text-white text-xs font-bold rounded-full shadow-lg">
               -{product.promotion.discount}%
             </span>
           </div>
         )}
+
+        {/* Favorite Button */}
+        <button
+          onClick={handleFavorite}
+          className={cn(
+            "absolute top-2 right-2 z-10 rounded-full flex items-center justify-center transition-all duration-200 shadow-md",
+            isMobile ? "w-7 h-7" : "w-8 h-8",
+            fav
+              ? "bg-amber-400 text-white scale-110"
+              : "bg-white/80 backdrop-blur-sm text-secondary/40 hover:text-amber-400 hover:bg-white"
+          )}
+        >
+          <Star className={cn(isMobile ? "w-3.5 h-3.5" : "w-4 h-4", fav && "fill-current")} />
+        </button>
 
         {/* Product Image */}
         {product.image ? (

@@ -28,13 +28,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCartContext } from "@/contexts/CartContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { useCoupons } from "@/contexts/CouponContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { Address, AddressFormData } from "@/types/address";
 import { UserCoupon } from "@/types/coupon";
+import { Product } from "@/types/product";
 import { getUserAddresses, deleteAddress, setDefaultAddress, createAddress, updateAddress } from "@/lib/supabase/addresses";
 import { AddressForm } from "@/components/checkout/AddressForm";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
+import Image from "next/image";
 
 function ProfileHeader({ user, onLogout }: { user: { name: string; phone: string }; onLogout: () => void }) {
   const initials = user.name
@@ -485,7 +488,82 @@ function AddressesSection({
   );
 }
 
-function QuickActions({ onOrdersClick }: { onOrdersClick: () => void }) {
+function FavoritesSection({ favorites, isLoading, onToggle }: {
+  favorites: Product[];
+  isLoading: boolean;
+  onToggle: (product: Product) => void;
+}) {
+  const addItem = (product: Product) => {
+    // Import inline via hook is not possible here; navigate to cardapio
+  };
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 gap-3">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
+            <div className="aspect-square bg-gray-200" />
+            <div className="p-3 space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+              <div className="h-4 bg-gray-200 rounded w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (favorites.length === 0) {
+    return (
+      <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-6 text-center border border-amber-100">
+        <div className="w-16 h-16 rounded-full bg-white shadow-lg mx-auto mb-4 flex items-center justify-center">
+          <Star className="w-8 h-8 text-amber-300" />
+        </div>
+        <p className="font-semibold text-secondary-dark mb-1">Nenhum favorito ainda</p>
+        <p className="text-sm text-secondary/60">
+          Toque na ⭐ nos produtos do cardápio para salvar aqui
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {favorites.map((product) => {
+        const finalPrice = product.promotion
+          ? product.price * (1 - product.promotion.discount / 100)
+          : product.price;
+        return (
+          <div key={product.id} className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+            <div className="relative aspect-square bg-gradient-to-br from-primary/5 to-accent-pink/10">
+              {product.image ? (
+                <Image src={product.image} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-3xl">🍦</div>
+              )}
+              <button
+                onClick={() => onToggle(product)}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-amber-400 text-white flex items-center justify-center shadow-md transition-all duration-200 hover:bg-amber-500 active:scale-90"
+              >
+                <Star className="w-3.5 h-3.5 fill-current" />
+              </button>
+            </div>
+            <div className="p-3">
+              <p className="text-sm font-semibold text-secondary-dark line-clamp-2 mb-1">{product.name}</p>
+              <p className="text-base font-bold text-primary">{formatCurrency(finalPrice)}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function QuickActions({ onOrdersClick, onFavoritesClick }: {
+  onOrdersClick: () => void;
+  onFavoritesClick: () => void;
+}) {
+  const { favorites } = useFavorites();
   return (
     <div className="grid grid-cols-2 gap-3">
       <button
@@ -499,12 +577,22 @@ function QuickActions({ onOrdersClick }: { onOrdersClick: () => void }) {
         <p className="text-xs text-secondary/50 mt-0.5">Ver histórico</p>
       </button>
 
-      <button className="bg-white rounded-2xl p-4 border border-gray-100 hover:border-primary/30 hover:shadow-md transition-all text-left group opacity-60">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-200 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-          <Star className="w-5 h-5 text-purple-600" />
+      <button
+        onClick={onFavoritesClick}
+        className="relative bg-white rounded-2xl p-4 border border-gray-100 hover:border-amber-300 hover:shadow-md transition-all text-left group"
+      >
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+          <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
         </div>
         <p className="font-semibold text-secondary-dark text-sm">Favoritos</p>
-        <p className="text-xs text-secondary/50 mt-0.5">Em breve</p>
+        <p className="text-xs text-secondary/50 mt-0.5">
+          {favorites.length > 0 ? `${favorites.length} salvo${favorites.length !== 1 ? 's' : ''}` : 'Nenhum ainda'}
+        </p>
+        {favorites.length > 0 && (
+          <span className="absolute top-3 right-3 w-5 h-5 bg-amber-400 text-white text-xs font-bold rounded-full flex items-center justify-center">
+            {favorites.length}
+          </span>
+        )}
       </button>
     </div>
   );
@@ -544,12 +632,13 @@ export default function PerfilPage() {
   const { isCartOpen, closeCart } = useCartContext();
   const { isOpen: isLoginOpen, closeModal: closeLoginModal, openModal: openLoginModal } = useLoginModal();
   const { coupons, couponsCount, isLoading: isCouponsLoading, refreshCoupons } = useCoupons();
+  const { favorites, isLoading: isFavoritesLoading, toggleFavorite } = useFavorites();
   const router = useRouter();
   const { showToast } = useToast();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isAddressesLoading, setIsAddressesLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"coupons" | "addresses">("coupons");
+  const [activeTab, setActiveTab] = useState<"coupons" | "addresses" | "favorites">("coupons");
 
   useEffect(() => {
     const loadAddresses = async () => {
@@ -602,7 +691,7 @@ export default function PerfilPage() {
             {/* Content */}
             <div className="px-4 -mt-4 relative z-10 space-y-6">
               {/* Quick Actions */}
-              <QuickActions onOrdersClick={() => router.push("/pedidos")} />
+              <QuickActions onOrdersClick={() => router.push("/pedidos")} onFavoritesClick={() => setActiveTab("favorites")} />
 
               {/* Tabs */}
               <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-gray-100">
@@ -643,6 +732,23 @@ export default function PerfilPage() {
                     <MapPin className="w-4 h-4" />
                     Endereços
                   </button>
+                  <button
+                    onClick={() => setActiveTab("favorites")}
+                    className={cn(
+                      "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all",
+                      activeTab === "favorites"
+                        ? "bg-gradient-to-r from-amber-400 to-yellow-400 text-white shadow-md"
+                        : "text-secondary/60 hover:bg-gray-50"
+                    )}
+                  >
+                    <Star className={cn("w-4 h-4", activeTab === "favorites" && "fill-current")} />
+                    Favoritos
+                    {favorites.length > 0 && activeTab !== "favorites" && (
+                      <span className="w-4 h-4 bg-amber-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                        {favorites.length}
+                      </span>
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -650,12 +756,18 @@ export default function PerfilPage() {
               <div>
                 {activeTab === "coupons" ? (
                   <CouponsSection coupons={coupons} isLoading={isCouponsLoading} />
-                ) : (
+                ) : activeTab === "addresses" ? (
                   <AddressesSection
                     userId={user.id}
                     addresses={addresses}
                     isLoading={isAddressesLoading}
                     onAddressChange={refreshAddresses}
+                  />
+                ) : (
+                  <FavoritesSection
+                    favorites={favorites}
+                    isLoading={isFavoritesLoading}
+                    onToggle={toggleFavorite}
                   />
                 )}
               </div>
@@ -679,7 +791,7 @@ export default function PerfilPage() {
                 <div className="bg-white rounded-3xl overflow-hidden shadow-lg sticky top-24">
                   <ProfileHeader user={user} onLogout={handleLogout} />
                   <div className="p-6">
-                    <QuickActions onOrdersClick={() => router.push("/pedidos")} />
+                    <QuickActions onOrdersClick={() => router.push("/pedidos")} onFavoritesClick={() => setActiveTab("favorites")} />
                   </div>
                 </div>
               </div>
@@ -709,6 +821,35 @@ export default function PerfilPage() {
                     )}
                   </div>
                   <CouponsSection coupons={coupons} isLoading={isCouponsLoading} />
+                </div>
+
+                {/* Favorites Section */}
+                <div className="bg-white rounded-3xl p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center">
+                        <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-secondary-dark">Favoritos</h2>
+                        <p className="text-sm text-secondary/60">
+                          {favorites.length > 0
+                            ? `${favorites.length} produto${favorites.length !== 1 ? 's' : ''} salvo${favorites.length !== 1 ? 's' : ''}`
+                            : "Nenhum produto salvo"}
+                        </p>
+                      </div>
+                    </div>
+                    {favorites.length > 0 && (
+                      <div className="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-yellow-400 rounded-full">
+                        <span className="text-xs font-bold text-white">{favorites.length}</span>
+                      </div>
+                    )}
+                  </div>
+                  <FavoritesSection
+                    favorites={favorites}
+                    isLoading={isFavoritesLoading}
+                    onToggle={toggleFavorite}
+                  />
                 </div>
 
                 {/* Addresses Section */}
