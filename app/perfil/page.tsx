@@ -732,23 +732,6 @@ export default function PerfilPage() {
                     <MapPin className="w-4 h-4" />
                     Endereços
                   </button>
-                  <button
-                    onClick={() => setActiveTab("favorites")}
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all",
-                      activeTab === "favorites"
-                        ? "bg-gradient-to-r from-amber-400 to-yellow-400 text-white shadow-md"
-                        : "text-secondary/60 hover:bg-gray-50"
-                    )}
-                  >
-                    <Star className={cn("w-4 h-4", activeTab === "favorites" && "fill-current")} />
-                    Favoritos
-                    {favorites.length > 0 && activeTab !== "favorites" && (
-                      <span className="w-4 h-4 bg-amber-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                        {favorites.length}
-                      </span>
-                    )}
-                  </button>
                 </div>
               </div>
 
