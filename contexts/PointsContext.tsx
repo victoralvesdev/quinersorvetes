@@ -7,10 +7,13 @@ import { useAuth } from "./AuthContext";
 import { useSettings } from "./SettingsContext";
 
 interface PointsContextType {
-  balance: number;
+  balance: number;          // pontos brutos
+  balanceInReais: number;   // balance / 10
   history: PointsTransaction[];
   isLoading: boolean;
-  redeemPoints: () => Promise<boolean>;
+  pointsEnabled: boolean;
+  pointsRatio: number;      // pts por R$1
+  redeemPointsForDiscount: (pointsToUse: number, description: string) => Promise<boolean>;
   refreshPoints: () => Promise<void>;
 }
 
@@ -22,6 +25,10 @@ export function PointsProvider({ children }: { children: ReactNode }) {
   const [balance, setBalance] = useState(0);
   const [history, setHistory] = useState<PointsTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const pointsEnabled = settings?.points_enabled ?? false;
+  const pointsRatio = settings?.points_ratio ?? 10;
+  const balanceInReais = balance / pointsRatio;
 
   const loadPoints = useCallback(async () => {
     if (!isAuthenticated || !user?.phone) {
@@ -48,21 +55,31 @@ export function PointsProvider({ children }: { children: ReactNode }) {
     loadPoints();
   }, [loadPoints]);
 
-  const redeemPoints = useCallback(async (): Promise<boolean> => {
-    if (!user?.phone || !settings) return false;
-    const cost = settings.points_redemption_cost;
-    const description = settings.points_redemption_description || "Resgate de pontos";
-    const success = await redeemPointsLib(user.phone, cost, description);
+  const redeemPointsForDiscount = useCallback(async (
+    pointsToUse: number,
+    description: string
+  ): Promise<boolean> => {
+    if (!user?.phone) return false;
+    const success = await redeemPointsLib(user.phone, pointsToUse, description);
     if (success) await loadPoints();
     return success;
-  }, [user, settings, loadPoints]);
+  }, [user, loadPoints]);
 
   const refreshPoints = useCallback(async () => {
     await loadPoints();
   }, [loadPoints]);
 
   return (
-    <PointsContext.Provider value={{ balance, history, isLoading, redeemPoints, refreshPoints }}>
+    <PointsContext.Provider value={{
+      balance,
+      balanceInReais,
+      history,
+      isLoading,
+      pointsEnabled,
+      pointsRatio,
+      redeemPointsForDiscount,
+      refreshPoints,
+    }}>
       {children}
     </PointsContext.Provider>
   );

@@ -36,8 +36,8 @@ export async function awardPointsForOrder(
   orderTotal: number,
   pointsRatio: number
 ): Promise<boolean> {
-  // pointsRatio: a cada R$X ganha 1 ponto
-  const pointsEarned = Math.floor(orderTotal / pointsRatio);
+  // pointsRatio: pontos por R$1 (ex: 10 = R$1 → 10 pts)
+  const pointsEarned = Math.floor(orderTotal * pointsRatio);
   if (pointsEarned <= 0) return true;
 
   const { error } = await supabase

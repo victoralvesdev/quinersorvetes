@@ -565,28 +565,9 @@ function FavoritesSection({ favorites, isLoading, onToggle }: {
 }
 
 function LoyaltySection() {
-  const { balance, history, isLoading, redeemPoints } = usePoints();
-  const { settings } = useSettings();
-  const { showToast } = useToast();
-  const [isRedeeming, setIsRedeeming] = useState(false);
+  const { balance, balanceInReais, history, isLoading, pointsEnabled, pointsRatio } = usePoints();
 
-  if (!settings?.points_enabled) return null;
-
-  const cost = settings.points_redemption_cost;
-  const rewardDesc = settings.points_redemption_description || "1 sorvete grátis";
-  const progress = Math.min((balance / cost) * 100, 100);
-  const canRedeem = balance >= cost;
-
-  const handleRedeem = async () => {
-    setIsRedeeming(true);
-    const ok = await redeemPoints();
-    setIsRedeeming(false);
-    if (ok) {
-      showToast(`🎉 Resgate efetuado: ${rewardDesc}!`, "success");
-    } else {
-      showToast("Pontos insuficientes para resgatar.", "error");
-    }
-  };
+  if (!pointsEnabled) return null;
 
   if (isLoading) {
     return (
@@ -599,9 +580,9 @@ function LoyaltySection() {
   }
 
   const typeLabel = (type: string) => {
-    if (type === "earned") return "Ganhos";
-    if (type === "redeemed") return "Resgatados";
-    return "Ajuste";
+    if (type === "earned") return "Pontos ganhos";
+    if (type === "redeemed") return "Desconto aplicado";
+    return "Ajuste manual";
   };
 
   const typeColor = (type: string) => {
@@ -610,51 +591,38 @@ function LoyaltySection() {
     return "text-blue-500";
   };
 
+  const amountLabel = (tx: { type: string; amount: number }) => {
+    const pts = tx.amount;
+    const reais = Math.abs(pts) / pointsRatio;
+    if (tx.type === "redeemed") return `-${formatCurrency(reais)}`;
+    if (tx.type === "earned") return `+${pts} pts`;
+    return `${pts > 0 ? "+" : ""}${pts} pts`;
+  };
+
   return (
     <div className="space-y-4">
       {/* Balance Card */}
       <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl p-5 border border-violet-100">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-secondary/60 font-medium mb-0.5">Seu saldo</p>
-            <p className="text-3xl font-bold text-violet-700">{balance} <span className="text-sm font-medium text-violet-500">pts</span></p>
+            <p className="text-xs text-secondary/60 font-medium mb-0.5">Seu saldo em pontos</p>
+            <p className="text-3xl font-bold text-violet-700">
+              {balance} <span className="text-sm font-medium text-violet-500">pts</span>
+            </p>
+            <p className="text-sm text-violet-600 font-semibold mt-0.5">
+              = {formatCurrency(balanceInReais)} de desconto
+            </p>
           </div>
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-lg">
             <Trophy className="w-7 h-7 text-white" />
           </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="mb-3">
-          <div className="flex justify-between text-xs text-secondary/60 mb-1.5">
-            <span>{balance} pts</span>
-            <span>Meta: {cost} pts → {rewardDesc}</span>
-          </div>
-          <div className="h-2.5 bg-white rounded-full overflow-hidden shadow-inner">
-            <div
-              className="h-full bg-gradient-to-r from-violet-400 to-purple-500 rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          {!canRedeem && (
-            <p className="text-xs text-secondary/50 mt-1.5">
-              Faltam <span className="font-semibold text-violet-600">{cost - balance} pts</span> para resgatar
-            </p>
-          )}
-        </div>
-
-        <button
-          onClick={handleRedeem}
-          disabled={!canRedeem || isRedeeming}
-          className={cn(
-            "w-full py-3 rounded-xl font-semibold text-sm transition-all",
-            canRedeem
-              ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-violet-200 hover:shadow-lg active:scale-95"
-              : "bg-white/60 text-secondary/40 cursor-not-allowed"
-          )}
-        >
-          {isRedeeming ? "Resgatando..." : canRedeem ? `🎁 Resgatar: ${rewardDesc}` : "Pontos insuficientes"}
-        </button>
+        {balance > 0 && (
+          <p className="text-xs text-violet-500/70 mt-3 bg-white/50 rounded-xl px-3 py-2">
+            💡 Use seus pontos como desconto ao finalizar o próximo pedido
+          </p>
+        )}
       </div>
 
       {/* History */}
@@ -669,13 +637,13 @@ function LoyaltySection() {
               <div key={tx.id} className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                    tx.type === "earned" ? "bg-emerald-50 text-emerald-600" :
-                    tx.type === "redeemed" ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-500"
+                    "w-8 h-8 rounded-full flex items-center justify-center",
+                    tx.type === "earned" ? "bg-emerald-50" :
+                    tx.type === "redeemed" ? "bg-red-50" : "bg-blue-50"
                   )}>
-                    {tx.type === "earned" ? <TrendingUp className="w-3.5 h-3.5" /> :
-                     tx.type === "redeemed" ? <Gift className="w-3.5 h-3.5" /> :
-                     <Settings className="w-3.5 h-3.5" />}
+                    {tx.type === "earned" ? <TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> :
+                     tx.type === "redeemed" ? <Gift className="w-3.5 h-3.5 text-red-500" /> :
+                     <Settings className="w-3.5 h-3.5 text-blue-500" />}
                   </div>
                   <div>
                     <p className="text-xs font-medium text-secondary-dark line-clamp-1">
@@ -687,7 +655,7 @@ function LoyaltySection() {
                   </div>
                 </div>
                 <span className={cn("text-sm font-bold", typeColor(tx.type))}>
-                  {tx.amount > 0 ? "+" : ""}{tx.amount} pts
+                  {amountLabel(tx)}
                 </span>
               </div>
             ))}
@@ -704,7 +672,7 @@ function QuickActions({ onOrdersClick, onFavoritesClick, onLoyaltyClick }: {
   onLoyaltyClick: () => void;
 }) {
   const { favorites } = useFavorites();
-  const { balance } = usePoints();
+  const { balance, balanceInReais } = usePoints();
   const { settings } = useSettings();
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -748,7 +716,7 @@ function QuickActions({ onOrdersClick, onFavoritesClick, onLoyaltyClick }: {
             </div>
             <div>
               <p className="font-semibold text-secondary-dark text-sm">Fidelidade</p>
-              <p className="text-xs text-violet-600 font-medium mt-0.5">{balance} pts acumulados</p>
+              <p className="text-xs text-violet-600 font-medium mt-0.5">{balance} pts · {formatCurrency(balanceInReais)}</p>
             </div>
           </div>
         </button>

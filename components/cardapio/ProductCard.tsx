@@ -9,6 +9,8 @@ import { useCartStore } from "@/store/cartStore";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
+import { usePoints } from "@/contexts/PointsContext";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface ProductCardProps {
   product: Product;
@@ -27,6 +29,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const { openModal: openLoginModal } = useLoginModal();
   const { isFavorited, toggleFavorite } = useFavorites();
   const fav = isFavorited(product.id);
+  const { balance, pointsEnabled, pointsRatio } = usePoints();
+  const { settings } = useSettings();
 
   const handleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -53,6 +57,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     : product.price;
 
   const isMobile = variant === "mobile";
+
+  // Points indicator
+  const pointsCost = Math.round(finalPrice * pointsRatio);
+  const hasEnoughPoints = balance >= pointsCost;
+  const showPoints = (settings?.points_enabled ?? pointsEnabled) && pointsCost > 0;
 
   return (
     <div
@@ -147,6 +156,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <p className="text-xs text-secondary/50 line-clamp-2 mb-3">
             {product.description}
           </p>
+        )}
+
+        {/* Points badge */}
+        {showPoints && (
+          <div className={cn(
+            "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold w-fit mb-1",
+            isAuthenticated && hasEnoughPoints
+              ? "bg-violet-100 text-violet-700"
+              : "bg-gray-100 text-gray-500"
+          )}>
+            <span>🏆</span>
+            <span>{pointsCost} pts</span>
+            {isAuthenticated && hasEnoughPoints && <span>· pode resgatar!</span>}
+          </div>
         )}
 
         {/* Price & Action */}

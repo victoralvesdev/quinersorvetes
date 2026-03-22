@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
+import { usePoints } from "@/contexts/PointsContext";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface ProductCardMobileProps {
   product: Product;
@@ -24,6 +26,8 @@ export const ProductCardMobile: React.FC<ProductCardMobileProps> = ({
   const { openModal: openLoginModal } = useLoginModal();
   const { isFavorited, toggleFavorite } = useFavorites();
   const fav = isFavorited(product.id);
+  const { balance, pointsRatio } = usePoints();
+  const { settings } = useSettings();
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -39,6 +43,10 @@ export const ProductCardMobile: React.FC<ProductCardMobileProps> = ({
   const finalPrice = product.promotion
     ? product.price * (1 - product.promotion.discount / 100)
     : product.price;
+
+  const pointsCost = Math.round(finalPrice * pointsRatio);
+  const hasEnoughPoints = balance >= pointsCost;
+  const showPoints = (settings?.points_enabled ?? false) && pointsCost > 0;
 
   // Cores de fundo baseadas na categoria
   const bgColors: Record<string, string> = {
@@ -102,6 +110,17 @@ export const ProductCardMobile: React.FC<ProductCardMobileProps> = ({
         <h3 className="font-medium text-base text-secondary mb-1 line-clamp-2 min-h-[2.5rem]">
           {product.name}
         </h3>
+        {showPoints && (
+          <div className={cn(
+            "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold w-fit mb-1",
+            isAuthenticated && hasEnoughPoints
+              ? "bg-violet-100 text-violet-700"
+              : "bg-gray-100 text-gray-500"
+          )}>
+            <span>🏆</span>
+            <span>{pointsCost}pts{isAuthenticated && hasEnoughPoints ? " · resgatar!" : ""}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between mt-auto">
           <span className="text-lg font-bold text-primary">
             {formatCurrency(finalPrice)}

@@ -16,6 +16,7 @@ import { CashPaymentScreen } from "./CashPaymentScreen";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useCartStore } from "@/store/cartStore";
 import { useCoupons } from "@/contexts/CouponContext";
+import { usePoints } from "@/contexts/PointsContext";
 
 const STORE_ADDRESS = {
   street: "Rua Argemiro Egidio Gonçalves",
@@ -77,7 +78,15 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
   const { selectedCoupon } = useCoupons();
   const isFreeShipping = selectedCoupon?.coupon.discount_type === 'free_shipping';
   const effectiveFreightFee = isFreeShipping ? 0 : (freightInfo?.fee || 0);
-  const amount = subtotal + effectiveFreightFee;
+  const baseAmount = subtotal + effectiveFreightFee;
+
+  // Points redemption
+  const { balance, balanceInReais, pointsEnabled, pointsRatio, redeemPointsForDiscount } = usePoints();
+  const [usePointsDiscount, setUsePointsDiscount] = useState(false);
+  const maxPointsDiscount = Math.min(balanceInReais, baseAmount);
+  const pointsDiscount = usePointsDiscount ? parseFloat(maxPointsDiscount.toFixed(2)) : 0;
+  const pointsToUse = Math.round(pointsDiscount * pointsRatio);
+  const amount = baseAmount - pointsDiscount;
 
   const loadAddresses = useCallback(async () => {
     if (!user) return;
@@ -119,6 +128,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
       setFreightError(null);
       setIsCalculatingFreight(false);
       setIsStorePickup(false);
+      setUsePointsDiscount(false);
     }
   }, [isOpen]);
 
@@ -243,6 +253,8 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
       isPaid: paymentCompleted ?? isPaid,
       freightFee: isStorePickup ? 0 : effectiveFreightFee,
       isStorePickup,
+      pointsDiscount,
+      pointsToUse,
     };
 
     if (changeData) {
@@ -250,6 +262,11 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
     }
 
     await onComplete(checkoutData);
+
+    // Deduct points after successful order
+    if (pointsToUse > 0) {
+      await redeemPointsForDiscount(pointsToUse, `Desconto de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pointsDiscount)} no pedido`);
+    }
   };
 
   return (
@@ -411,6 +428,38 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
                 onSelectMethod={handlePaymentSelect}
               />
 
+              {/* Points Discount */}
+              {pointsEnabled && balance > 0 && (
+                <div className={cn(
+                  "rounded-xl border-2 p-3 transition-all",
+                  usePointsDiscount ? "border-violet-400 bg-violet-50" : "border-gray-200 bg-gray-50"
+                )}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🏆</span>
+                      <div>
+                        <p className="text-sm font-semibold text-secondary-dark">Usar pontos</p>
+                        <p className="text-xs text-secondary/60">
+                          {balance} pts = {formatCurrency(balanceInReais)} de desconto
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setUsePointsDiscount(!usePointsDiscount)}
+                      className={cn(
+                        "relative w-11 h-6 rounded-full transition-colors duration-200",
+                        usePointsDiscount ? "bg-violet-500" : "bg-gray-300"
+                      )}
+                    >
+                      <span className={cn(
+                        "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200",
+                        usePointsDiscount && "translate-x-5"
+                      )} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Resumo */}
               <div className="border-t pt-4 mt-4">
                 <div className="space-y-2 mb-4">
@@ -435,6 +484,12 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
                       )}
                     </div>
                   ) : null}
+                  {pointsDiscount > 0 && (
+                    <div className="flex justify-between items-center text-sm text-violet-600">
+                      <span>🏆 Desconto pontos ({pointsToUse} pts)</span>
+                      <span>-{formatCurrency(pointsDiscount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center pt-1 border-t border-gray-100">
                     <span className="text-lg font-semibold text-secondary">Total:</span>
                     <span className="text-2xl font-bold text-primary">
