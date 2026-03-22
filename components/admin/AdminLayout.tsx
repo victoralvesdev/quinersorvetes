@@ -24,6 +24,7 @@ import {
   Archive,
   Truck,
   Clock,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/AdminContext";
@@ -42,6 +43,7 @@ const navigation = [
   { name: "Frete", href: "/gestao-admin/frete", icon: Truck },
   { name: "Cupons", href: "/gestao-admin/cupons", icon: Tag },
   { name: "Clientes", href: "/gestao-admin/clientes", icon: Users },
+  { name: "Fidelidade", href: "/gestao-admin/fidelidade", icon: Trophy },
   { name: "Relatórios", href: "/gestao-admin/relatorios", icon: BarChart3 },
   { name: "Configurações", href: "/gestao-admin/configuracoes", icon: Settings },
 ];

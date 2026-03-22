@@ -77,6 +77,12 @@ export interface PublicSettings {
   footer_slogan: string;
   footer_slogan_secondary: string;
   footer_links: FooterLink[];
+
+  // Loyalty Points
+  points_enabled: boolean;
+  points_ratio: number;          // ex: 10 = a cada R$10 ganha 1 ponto
+  points_redemption_cost: number; // ex: 50 = 50 pontos para resgatar sorvete grátis
+  points_redemption_description: string; // ex: "1 sorvete grátis"
 }
 
 // Private settings (admin only)
@@ -130,6 +136,10 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
     { label: "Contato", url: "#" },
     { label: "Política de Privacidade", url: "#" },
   ],
+  points_enabled: false,
+  points_ratio: 10,
+  points_redemption_cost: 50,
+  points_redemption_description: "1 sorvete grátis",
 };
 
 // Default private settings

@@ -4,6 +4,8 @@ import {
   getOrderWithUser
 } from '@/lib/supabase/orders';
 import { sendTextMessage } from '@/lib/evolution-api';
+import { awardPointsForOrder } from '@/lib/supabase/points';
+import { getPublicSettings } from '@/lib/supabase/settings';
 
 /**
  * API Route para atualizar status do pedido com notificações
@@ -156,6 +158,23 @@ Esperamos que você aproveite seu pedido. Até a próxima! 💜`;
           console.log('[update-status] Notificação de entrega enviada');
         } catch (error) {
           console.error('[update-status] Erro ao enviar notificação de entrega:', error);
+        }
+
+        // Award loyalty points
+        try {
+          const settings = await getPublicSettings();
+          if (settings.points_enabled) {
+            const orderTotal = orderData.order?.total || 0;
+            await awardPointsForOrder(
+              orderData.userPhone,
+              orderId,
+              orderTotal,
+              settings.points_ratio
+            );
+            console.log('[update-status] Pontos concedidos para:', orderData.userPhone);
+          }
+        } catch (error) {
+          console.error('[update-status] Erro ao conceder pontos:', error);
         }
       }
     }

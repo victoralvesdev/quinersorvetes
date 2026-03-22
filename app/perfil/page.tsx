@@ -19,6 +19,9 @@ import {
   Edit3,
   Check,
   X,
+  Trophy,
+  History,
+  TrendingUp,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { formatCEP } from "@/lib/utils/cep";
@@ -29,6 +32,8 @@ import { useCartContext } from "@/contexts/CartContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { useCoupons } from "@/contexts/CouponContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { usePoints } from "@/contexts/PointsContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { Address, AddressFormData } from "@/types/address";
 import { UserCoupon } from "@/types/coupon";
@@ -559,11 +564,148 @@ function FavoritesSection({ favorites, isLoading, onToggle }: {
   );
 }
 
-function QuickActions({ onOrdersClick, onFavoritesClick }: {
+function LoyaltySection() {
+  const { balance, history, isLoading, redeemPoints } = usePoints();
+  const { settings } = useSettings();
+  const { showToast } = useToast();
+  const [isRedeeming, setIsRedeeming] = useState(false);
+
+  if (!settings?.points_enabled) return null;
+
+  const cost = settings.points_redemption_cost;
+  const rewardDesc = settings.points_redemption_description || "1 sorvete grátis";
+  const progress = Math.min((balance / cost) * 100, 100);
+  const canRedeem = balance >= cost;
+
+  const handleRedeem = async () => {
+    setIsRedeeming(true);
+    const ok = await redeemPoints();
+    setIsRedeeming(false);
+    if (ok) {
+      showToast(`🎉 Resgate efetuado: ${rewardDesc}!`, "success");
+    } else {
+      showToast("Pontos insuficientes para resgatar.", "error");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-2xl p-4 animate-pulse space-y-3">
+        <div className="h-5 bg-gray-200 rounded w-32" />
+        <div className="h-3 bg-gray-200 rounded w-full" />
+        <div className="h-8 bg-gray-200 rounded w-full" />
+      </div>
+    );
+  }
+
+  const typeLabel = (type: string) => {
+    if (type === "earned") return "Ganhos";
+    if (type === "redeemed") return "Resgatados";
+    return "Ajuste";
+  };
+
+  const typeColor = (type: string) => {
+    if (type === "earned") return "text-emerald-600";
+    if (type === "redeemed") return "text-red-500";
+    return "text-blue-500";
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Balance Card */}
+      <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl p-5 border border-violet-100">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xs text-secondary/60 font-medium mb-0.5">Seu saldo</p>
+            <p className="text-3xl font-bold text-violet-700">{balance} <span className="text-sm font-medium text-violet-500">pts</span></p>
+          </div>
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-lg">
+            <Trophy className="w-7 h-7 text-white" />
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mb-3">
+          <div className="flex justify-between text-xs text-secondary/60 mb-1.5">
+            <span>{balance} pts</span>
+            <span>Meta: {cost} pts → {rewardDesc}</span>
+          </div>
+          <div className="h-2.5 bg-white rounded-full overflow-hidden shadow-inner">
+            <div
+              className="h-full bg-gradient-to-r from-violet-400 to-purple-500 rounded-full transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          {!canRedeem && (
+            <p className="text-xs text-secondary/50 mt-1.5">
+              Faltam <span className="font-semibold text-violet-600">{cost - balance} pts</span> para resgatar
+            </p>
+          )}
+        </div>
+
+        <button
+          onClick={handleRedeem}
+          disabled={!canRedeem || isRedeeming}
+          className={cn(
+            "w-full py-3 rounded-xl font-semibold text-sm transition-all",
+            canRedeem
+              ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-violet-200 hover:shadow-lg active:scale-95"
+              : "bg-white/60 text-secondary/40 cursor-not-allowed"
+          )}
+        >
+          {isRedeeming ? "Resgatando..." : canRedeem ? `🎁 Resgatar: ${rewardDesc}` : "Pontos insuficientes"}
+        </button>
+      </div>
+
+      {/* History */}
+      {history.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+            <History className="w-4 h-4 text-secondary/50" />
+            <span className="text-sm font-semibold text-secondary-dark">Histórico</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {history.slice(0, 8).map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                    tx.type === "earned" ? "bg-emerald-50 text-emerald-600" :
+                    tx.type === "redeemed" ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-500"
+                  )}>
+                    {tx.type === "earned" ? <TrendingUp className="w-3.5 h-3.5" /> :
+                     tx.type === "redeemed" ? <Gift className="w-3.5 h-3.5" /> :
+                     <Settings className="w-3.5 h-3.5" />}
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-secondary-dark line-clamp-1">
+                      {tx.description || typeLabel(tx.type)}
+                    </p>
+                    <p className="text-[10px] text-secondary/40">
+                      {new Date(tx.created_at).toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                </div>
+                <span className={cn("text-sm font-bold", typeColor(tx.type))}>
+                  {tx.amount > 0 ? "+" : ""}{tx.amount} pts
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuickActions({ onOrdersClick, onFavoritesClick, onLoyaltyClick }: {
   onOrdersClick: () => void;
   onFavoritesClick: () => void;
+  onLoyaltyClick: () => void;
 }) {
   const { favorites } = useFavorites();
+  const { balance } = usePoints();
+  const { settings } = useSettings();
   return (
     <div className="grid grid-cols-2 gap-3">
       <button
@@ -594,6 +736,23 @@ function QuickActions({ onOrdersClick, onFavoritesClick }: {
           </span>
         )}
       </button>
+
+      {settings?.points_enabled && (
+        <button
+          onClick={onLoyaltyClick}
+          className="relative col-span-2 bg-gradient-to-r from-violet-50 to-purple-50 rounded-2xl p-4 border border-violet-100 hover:border-violet-300 hover:shadow-md transition-all text-left group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Trophy className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="font-semibold text-secondary-dark text-sm">Fidelidade</p>
+              <p className="text-xs text-violet-600 font-medium mt-0.5">{balance} pts acumulados</p>
+            </div>
+          </div>
+        </button>
+      )}
     </div>
   );
 }
@@ -638,7 +797,7 @@ export default function PerfilPage() {
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isAddressesLoading, setIsAddressesLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"coupons" | "addresses" | "favorites">("coupons");
+  const [activeTab, setActiveTab] = useState<"coupons" | "addresses" | "favorites" | "loyalty">("coupons");
 
   useEffect(() => {
     const loadAddresses = async () => {
@@ -691,7 +850,7 @@ export default function PerfilPage() {
             {/* Content */}
             <div className="px-4 -mt-4 relative z-10 space-y-6">
               {/* Quick Actions */}
-              <QuickActions onOrdersClick={() => router.push("/pedidos")} onFavoritesClick={() => setActiveTab("favorites")} />
+              <QuickActions onOrdersClick={() => router.push("/pedidos")} onFavoritesClick={() => setActiveTab("favorites")} onLoyaltyClick={() => setActiveTab("loyalty")} />
 
               {/* Tabs */}
               <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-gray-100">
@@ -746,12 +905,14 @@ export default function PerfilPage() {
                     isLoading={isAddressesLoading}
                     onAddressChange={refreshAddresses}
                   />
-                ) : (
+                ) : activeTab === "favorites" ? (
                   <FavoritesSection
                     favorites={favorites}
                     isLoading={isFavoritesLoading}
                     onToggle={toggleFavorite}
                   />
+                ) : (
+                  <LoyaltySection />
                 )}
               </div>
             </div>
@@ -774,7 +935,7 @@ export default function PerfilPage() {
                 <div className="bg-white rounded-3xl overflow-hidden shadow-lg sticky top-24">
                   <ProfileHeader user={user} onLogout={handleLogout} />
                   <div className="p-6">
-                    <QuickActions onOrdersClick={() => router.push("/pedidos")} onFavoritesClick={() => setActiveTab("favorites")} />
+                    <QuickActions onOrdersClick={() => router.push("/pedidos")} onFavoritesClick={() => setActiveTab("favorites")} onLoyaltyClick={() => setActiveTab("loyalty")} />
                   </div>
                 </div>
               </div>
@@ -833,6 +994,20 @@ export default function PerfilPage() {
                     isLoading={isFavoritesLoading}
                     onToggle={toggleFavorite}
                   />
+                </div>
+
+                {/* Loyalty Section */}
+                <div className="bg-white rounded-3xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                      <Trophy className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-secondary-dark">Fidelidade</h2>
+                      <p className="text-sm text-secondary/60">Acumule pontos e ganhe recompensas</p>
+                    </div>
+                  </div>
+                  <LoyaltySection />
                 </div>
 
                 {/* Addresses Section */}

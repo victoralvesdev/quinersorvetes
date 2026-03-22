@@ -12,6 +12,7 @@ import {
   Save,
   X,
   AlertCircle,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
@@ -29,7 +30,7 @@ import { ContactTab } from "./components/ContactTab";
 import { FooterTab } from "./components/FooterTab";
 import { IntegrationsTab } from "./components/IntegrationsTab";
 
-type TabId = "appearance" | "social" | "contact" | "footer" | "integrations";
+type TabId = "appearance" | "social" | "contact" | "footer" | "integrations" | "loyalty";
 
 interface Tab {
   id: TabId;
@@ -74,6 +75,13 @@ const TABS: Tab[] = [
     shortLabel: "APIs",
     icon: Plug,
     color: "violet",
+  },
+  {
+    id: "loyalty",
+    label: "Fidelidade",
+    shortLabel: "Pontos",
+    icon: Trophy,
+    color: "purple",
   },
 ];
 
@@ -233,6 +241,10 @@ export default function ConfiguracoesPage() {
         active: "bg-violet-500 text-white border-violet-500 shadow-sm shadow-violet-500/20",
         inactive: "bg-violet-50 text-violet-600 border-violet-200 hover:border-violet-400",
       },
+      purple: {
+        active: "bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-600/20",
+        inactive: "bg-purple-50 text-purple-600 border-purple-200 hover:border-purple-400",
+      },
     };
     return isActive ? colors[tab.color].active : colors[tab.color].inactive;
   };
@@ -380,6 +392,99 @@ export default function ConfiguracoesPage() {
                   mercadopagoToken={settings.mercadopago_access_token}
                   onChange={handleChange}
                 />
+              )}
+
+              {activeTab === "loyalty" && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-semibold text-secondary-dark mb-1">Programa de Fidelidade</h3>
+                    <p className="text-sm text-secondary/60 mb-4">Configure como os clientes acumulam e resgatam pontos.</p>
+
+                    <div className="space-y-4">
+                      {/* Enable/Disable */}
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                        <div>
+                          <p className="text-sm font-medium text-secondary-dark">Ativar programa de pontos</p>
+                          <p className="text-xs text-secondary/50 mt-0.5">Exibe pontos no perfil e concede pontos em entregas</p>
+                        </div>
+                        <button
+                          onClick={() => handleChange("points_enabled", !settings.points_enabled)}
+                          className={cn(
+                            "relative w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none",
+                            settings.points_enabled ? "bg-purple-500" : "bg-gray-300"
+                          )}
+                        >
+                          <span className={cn(
+                            "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200",
+                            settings.points_enabled && "translate-x-6"
+                          )} />
+                        </button>
+                      </div>
+
+                      {settings.points_enabled && (
+                        <>
+                          {/* Points Ratio */}
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-secondary-dark">
+                              Proporção (R$ por ponto)
+                            </label>
+                            <p className="text-xs text-secondary/50">Ex: 10 = a cada R$10 gastos o cliente ganha 1 ponto</p>
+                            <input
+                              type="number"
+                              min="1"
+                              value={settings.points_ratio}
+                              onChange={(e) => handleChange("points_ratio", Number(e.target.value))}
+                              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
+                            />
+                          </div>
+
+                          {/* Redemption Cost */}
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-secondary-dark">
+                              Pontos para resgatar
+                            </label>
+                            <p className="text-xs text-secondary/50">Quantos pontos o cliente precisa para resgatar a recompensa</p>
+                            <input
+                              type="number"
+                              min="1"
+                              value={settings.points_redemption_cost}
+                              onChange={(e) => handleChange("points_redemption_cost", Number(e.target.value))}
+                              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
+                            />
+                          </div>
+
+                          {/* Reward Description */}
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-secondary-dark">
+                              Descrição da recompensa
+                            </label>
+                            <p className="text-xs text-secondary/50">Ex: &ldquo;1 sorvete grátis&rdquo;, &ldquo;R$5 de desconto&rdquo;</p>
+                            <input
+                              type="text"
+                              value={settings.points_redemption_description}
+                              onChange={(e) => handleChange("points_redemption_description", e.target.value)}
+                              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
+                            />
+                          </div>
+
+                          {/* Preview */}
+                          <div className="p-4 bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl border border-violet-100">
+                            <p className="text-xs font-semibold text-violet-700 mb-1">Preview</p>
+                            <p className="text-sm text-secondary-dark">
+                              A cada <strong>R${settings.points_ratio}</strong> comprados → <strong>1 ponto</strong>
+                            </p>
+                            <p className="text-sm text-secondary-dark">
+                              Com <strong>{settings.points_redemption_cost} pontos</strong> → <strong>{settings.points_redemption_description || "recompensa"}</strong>
+                            </p>
+                            <p className="text-xs text-secondary/50 mt-2">
+                              O cliente precisa gastar ~R${(settings.points_ratio * settings.points_redemption_cost).toLocaleString("pt-BR")} para ganhar uma recompensa.
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
               )}
             </>
           )}
