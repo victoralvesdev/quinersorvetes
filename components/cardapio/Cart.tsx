@@ -564,74 +564,92 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
               );
             })()}
 
-            {/* Banner de Resgate de Pontos */}
+            {/* Banner de Resgate de Pontos — card único */}
             {isAuthenticated && pointsEnabled && (() => {
-              // Encontra itens no carrinho que têm resgates de pontos configurados
               const redeemableItems = items.filter((item) => rewardsByProductId[item.product.id]);
               if (redeemableItems.length === 0) return null;
 
-              return (
-                <div className="space-y-2">
-                  {redeemableItems.map((item) => {
-                    const reward = rewardsByProductId[item.product.id];
-                    const isRedeemed = pointsRedeemedProductId === item.product.id;
-                    const hasEnough = balance >= reward.points_required;
-                    const missing = reward.points_required - balance;
-                    const progress = Math.min(100, (balance / reward.points_required) * 100);
+              const eligible = redeemableItems.filter((item) => balance >= rewardsByProductId[item.product.id].points_required);
+              const ineligible = redeemableItems.filter((item) => balance < rewardsByProductId[item.product.id].points_required);
+              // Produto mais próximo de atingir os pontos (menor diferença)
+              const closest = ineligible.length > 0
+                ? ineligible.reduce((a, b) =>
+                    (rewardsByProductId[a.product.id].points_required - balance) <=
+                    (rewardsByProductId[b.product.id].points_required - balance) ? a : b
+                  )
+                : null;
+              const closestReward = closest ? rewardsByProductId[closest.product.id] : null;
+              const closestProgress = closestReward ? Math.min(100, (balance / closestReward.points_required) * 100) : 0;
+              const othersCount = ineligible.length - (closest ? 1 : 0);
 
-                    return (
-                      <div
-                        key={item.product.id}
-                        className={cn(
-                          "rounded-xl border-2 p-3 transition-all duration-300",
-                          isRedeemed
-                            ? "border-violet-400 bg-violet-50"
-                            : hasEnough
-                            ? "border-violet-200 bg-violet-50/60"
-                            : "border-dashed border-secondary/20 bg-gray-50/50"
-                        )}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <Trophy className={cn("w-4 h-4 flex-shrink-0", hasEnough ? "text-violet-600" : "text-secondary/40")} />
-                          <span className={cn("text-sm font-semibold flex-1 line-clamp-1", hasEnough ? "text-violet-700" : "text-secondary/60")}>
-                            {isRedeemed
-                              ? `${item.product.name} grátis! 🎉`
-                              : hasEnough
-                              ? `${item.product.name} — resgate grátis!`
-                              : `${item.product.name}`
-                            }
+              const hasActive = !!pointsRedeemedProductId;
+
+              return (
+                <div className={cn(
+                  "rounded-xl border-2 overflow-hidden transition-all duration-300",
+                  hasActive ? "border-violet-400" : eligible.length > 0 ? "border-violet-200" : "border-gray-200"
+                )}>
+                  {/* Header */}
+                  <div className={cn(
+                    "flex items-center gap-2 px-3 py-2",
+                    hasActive ? "bg-violet-500" : eligible.length > 0 ? "bg-violet-50" : "bg-gray-50"
+                  )}>
+                    <Trophy className={cn("w-3.5 h-3.5 flex-shrink-0", hasActive || eligible.length > 0 ? "text-violet-600" : "text-gray-400", hasActive && "text-white")} />
+                    <span className={cn("text-xs font-bold flex-1", hasActive ? "text-white" : eligible.length > 0 ? "text-violet-700" : "text-gray-500")}>
+                      {hasActive ? "Resgate ativo! 🎉" : eligible.length > 0 ? "Resgate disponível!" : "Pontos de fidelidade"}
+                    </span>
+                    <span className={cn("text-xs font-semibold", hasActive ? "text-violet-100" : "text-violet-500")}>
+                      {balance} pts
+                    </span>
+                  </div>
+
+                  <div className="bg-white divide-y divide-gray-50">
+                    {/* Produtos elegíveis — linha compacta por produto */}
+                    {eligible.map((item) => {
+                      const reward = rewardsByProductId[item.product.id];
+                      const isRedeemed = pointsRedeemedProductId === item.product.id;
+                      return (
+                        <div key={item.product.id} className={cn("flex items-center gap-2 px-3 py-2", isRedeemed && "bg-violet-50")}>
+                          <span className={cn("text-xs flex-1 font-medium line-clamp-1", isRedeemed ? "text-violet-700" : "text-gray-700")}>
+                            {isRedeemed && "✓ "}{item.product.name}
                           </span>
-                          {hasEnough && (
-                            <button
-                              onClick={() => setPointsRedeemedProduct(isRedeemed ? null : item.product.id)}
-                              className={cn(
-                                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex-shrink-0",
-                                isRedeemed
-                                  ? "bg-violet-500 text-white"
-                                  : "bg-violet-100 text-violet-700 hover:bg-violet-200"
-                              )}
-                            >
-                              {isRedeemed ? "✓ Ativo" : "Ativar"}
-                            </button>
-                          )}
+                          <span className="text-[10px] text-violet-500 font-semibold flex-shrink-0">{reward.points_required} pts</span>
+                          <button
+                            onClick={() => setPointsRedeemedProduct(isRedeemed ? null : item.product.id)}
+                            className={cn(
+                              "px-2 py-1 rounded-lg text-[10px] font-bold transition-all flex-shrink-0",
+                              isRedeemed ? "bg-violet-500 text-white" : "bg-violet-100 text-violet-700 hover:bg-violet-200"
+                            )}
+                          >
+                            {isRedeemed ? "Ativo" : "Ativar"}
+                          </button>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1.5 overflow-hidden">
+                      );
+                    })}
+
+                    {/* Produto mais próximo com barra de progresso */}
+                    {closest && closestReward && (
+                      <div className="px-3 py-2 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 flex-1 line-clamp-1">{closest.product.name}</span>
+                          <span className="text-[10px] text-gray-400 flex-shrink-0">
+                            faltam {closestReward.points_required - balance} pts
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
                           <div
-                            className={cn("h-full rounded-full transition-all duration-500", hasEnough ? "bg-violet-500" : "bg-primary")}
-                            style={{ width: `${progress}%` }}
+                            className="h-full rounded-full bg-violet-400 transition-all duration-500"
+                            style={{ width: `${closestProgress}%` }}
                           />
                         </div>
-                        <p className="text-xs text-secondary/60">
-                          {isRedeemed
-                            ? `1 unidade grátis com ${reward.points_required} pts (você tem ${balance} pts)`
-                            : hasEnough
-                            ? `Você tem ${balance} pts — use ${reward.points_required} pts para ganhar 1 grátis!`
-                            : `Faltam ${missing} pts para resgatar 1 grátis (${reward.points_required} pts)`
-                          }
-                        </p>
+                        {othersCount > 0 && (
+                          <p className="text-[10px] text-gray-400">
+                            + {othersCount} outro{othersCount > 1 ? "s" : ""} produto{othersCount > 1 ? "s" : ""} com resgate
+                          </p>
+                        )}
                       </div>
-                    );
-                  })}
+                    )}
+                  </div>
                 </div>
               );
             })()}
