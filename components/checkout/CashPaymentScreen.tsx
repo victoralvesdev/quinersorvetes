@@ -14,12 +14,14 @@ interface CashPaymentScreenProps {
   amount: number;
   onBack: () => void;
   onContinue: (changeData: { needsChange: boolean; changeFor?: number }) => void;
+  isStorePickup?: boolean;
 }
 
 export function CashPaymentScreen({
   amount,
   onBack,
   onContinue,
+  isStorePickup = false,
 }: CashPaymentScreenProps) {
   const [needsChange, setNeedsChange] = useState<boolean | null>(null);
   const [changeFor, setChangeFor] = useState("");
@@ -79,7 +81,9 @@ export function CashPaymentScreen({
           <ArrowLeft className="w-5 h-5 text-secondary" />
         </button>
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-secondary-dark">Pagar na Entrega</h2>
+          <h2 className="text-xl font-bold text-secondary-dark">
+            {isStorePickup ? "Pagamento no Local" : "Pagar na Entrega"}
+          </h2>
           <p className="text-sm text-secondary/60">
             Valor: <span className="font-semibold text-primary">{formatCurrency(amount)}</span>
           </p>
@@ -93,9 +97,13 @@ export function CashPaymentScreen({
             <HandCoins className="w-5 h-5 text-green-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold text-green-800">Pagamento na entrega</p>
+            <p className="font-semibold text-green-800">
+              {isStorePickup ? "Pagamento na retirada" : "Pagamento na entrega"}
+            </p>
             <p className="text-xs text-green-600">
-              Pague em dinheiro ou cartão quando receber seu pedido
+              {isStorePickup
+                ? "Pague em dinheiro ou cartão ao retirar seu pedido"
+                : "Pague em dinheiro ou cartão quando receber seu pedido"}
             </p>
           </div>
         </div>

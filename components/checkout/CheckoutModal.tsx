@@ -316,6 +316,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
           ) : step === "cash" ? (
             <CashPaymentScreen
               amount={amount}
+              isStorePickup={isStorePickup}
               onBack={() => {
                 setStep("payment");
                 setChangeData(undefined);
@@ -327,8 +328,39 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
             />
           ) : step === "address" ? (
             <>
-              {/* Toggle Delivery / Retirar na Loja — oculto temporariamente */}
-              {false && isStorePickup ? (
+              {/* Toggle Delivery / Retirar no Local */}
+              <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+                <button
+                  className={cn(
+                    "flex-1 py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium transition-colors",
+                    !isStorePickup
+                      ? "bg-primary text-white"
+                      : "bg-white text-secondary/70 hover:bg-gray-50"
+                  )}
+                  onClick={() => {
+                    setIsStorePickup(false);
+                    setFreightInfo(null);
+                    setFreightError(null);
+                  }}
+                >
+                  <Truck className="w-4 h-4" />
+                  Delivery
+                </button>
+                <button
+                  className={cn(
+                    "flex-1 py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium transition-colors",
+                    isStorePickup
+                      ? "bg-primary text-white"
+                      : "bg-white text-secondary/70 hover:bg-gray-50"
+                  )}
+                  onClick={() => setIsStorePickup(true)}
+                >
+                  <Store className="w-4 h-4" />
+                  Retirar no Local
+                </button>
+              </div>
+
+              {isStorePickup ? (
                 <>
                   {/* Card com endereço da loja */}
                   <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
@@ -421,6 +453,7 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
               <PaymentMethodSelector
                 selectedMethod={paymentMethod}
                 onSelectMethod={handlePaymentSelect}
+                isStorePickup={isStorePickup}
               />
 
               {/* Points Product Redemption Indicator */}

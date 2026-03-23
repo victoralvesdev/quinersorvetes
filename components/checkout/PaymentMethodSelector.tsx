@@ -2,14 +2,15 @@
 
 import { PaymentMethod } from "@/types/checkout";
 import { Card } from "@/components/ui/Card";
-import { CreditCard, Smartphone, Check } from "lucide-react";
+import { CreditCard, Smartphone, Check, Banknote } from "lucide-react";
 
 interface PaymentMethodSelectorProps {
   selectedMethod?: PaymentMethod;
   onSelectMethod: (method: PaymentMethod) => void;
+  isStorePickup?: boolean;
 }
 
-const paymentMethods: {
+const deliveryMethods: {
   value: PaymentMethod;
   label: string;
   description: string;
@@ -35,10 +36,32 @@ const paymentMethods: {
   },
 ];
 
+const pickupMethods: {
+  value: PaymentMethod;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    value: "cash_on_delivery",
+    label: "Pagamento no Local",
+    description: "Pague em dinheiro ou cartão ao retirar",
+    icon: <Banknote className="w-5 h-5" />,
+  },
+  {
+    value: "pix",
+    label: "PIX",
+    description: "Pagamento instantâneo",
+    icon: <Smartphone className="w-5 h-5" />,
+  },
+];
+
 export function PaymentMethodSelector({
   selectedMethod,
   onSelectMethod,
+  isStorePickup = false,
 }: PaymentMethodSelectorProps) {
+  const paymentMethods = isStorePickup ? pickupMethods : deliveryMethods;
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-secondary">Forma de Pagamento</h3>
