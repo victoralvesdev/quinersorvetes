@@ -43,16 +43,28 @@ const pickupMethods: {
   icon: React.ReactNode;
 }[] = [
   {
-    value: "cash_on_delivery",
-    label: "Pagamento no Local",
-    description: "Pague em dinheiro ou cartão ao retirar",
-    icon: <Banknote className="w-5 h-5" />,
+    value: "credit_card",
+    label: "Cartão de Crédito",
+    description: "Pague com cartão de crédito",
+    icon: <CreditCard className="w-5 h-5" />,
+  },
+  {
+    value: "debit_card",
+    label: "Cartão de Débito",
+    description: "Pague com cartão de débito",
+    icon: <CreditCard className="w-5 h-5" />,
   },
   {
     value: "pix",
     label: "PIX",
     description: "Pagamento instantâneo",
     icon: <Smartphone className="w-5 h-5" />,
+  },
+  {
+    value: "cash_on_delivery",
+    label: "Pagamento no Local",
+    description: "Pague em dinheiro ou cartão ao retirar",
+    icon: <Banknote className="w-5 h-5" />,
   },
 ];
 
