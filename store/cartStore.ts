@@ -5,6 +5,7 @@ import { CartItem, Product } from "@/types/product";
 interface CartStore {
   items: CartItem[];
   lastAddedProduct: Product | null;
+  pointsRedeemedProductId: string | null;
   addItem: (product: Product, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
@@ -13,6 +14,7 @@ interface CartStore {
   getItemCount: () => number;
   setItems: (items: CartItem[]) => void;
   clearLastAdded: () => void;
+  setPointsRedeemedProduct: (productId: string | null) => void;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -20,8 +22,11 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       lastAddedProduct: null,
+      pointsRedeemedProductId: null,
 
       clearLastAdded: () => set({ lastAddedProduct: null }),
+
+      setPointsRedeemedProduct: (productId) => set({ pointsRedeemedProductId: productId }),
 
       addItem: (product, quantity = 1) => {
         const state = get();
@@ -66,6 +71,8 @@ export const useCartStore = create<CartStore>()(
       removeItem: (productId) => {
         set((state) => ({
           items: state.items.filter((item) => item.product.id !== productId),
+          pointsRedeemedProductId:
+            state.pointsRedeemedProductId === productId ? null : state.pointsRedeemedProductId,
         }));
       },
 
@@ -83,7 +90,7 @@ export const useCartStore = create<CartStore>()(
       },
 
       clearCart: () => {
-        set({ items: [] });
+        set({ items: [], pointsRedeemedProductId: null });
       },
 
       setItems: (items) => {

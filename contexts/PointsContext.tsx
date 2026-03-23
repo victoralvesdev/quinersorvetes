@@ -1,20 +1,27 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { PointsTransaction } from "@/types/points";
-import { getPointsBalance, getPointsHistory, redeemPoints as redeemPointsLib } from "@/lib/supabase/points";
+import { PointsTransaction, ProductPointsReward } from "@/types/points";
+import {
+  getPointsBalance,
+  getPointsHistory,
+  redeemPoints as redeemPointsLib,
+  getProductPointsRewards,
+} from "@/lib/supabase/points";
 import { useAuth } from "./AuthContext";
 import { useSettings } from "./SettingsContext";
 
 interface PointsContextType {
-  balance: number;          // pontos brutos
-  balanceInReais: number;   // balance / 10
+  balance: number;
   history: PointsTransaction[];
   isLoading: boolean;
   pointsEnabled: boolean;
-  pointsRatio: number;      // pts por R$1
-  redeemPointsForDiscount: (pointsToUse: number, description: string) => Promise<boolean>;
+  pointsRatio: number;
+  productRewards: ProductPointsReward[];
+  rewardsByProductId: Record<string, ProductPointsReward>;
+  redeemForProduct: (productId: string, productName: string, pointsRequired: number) => Promise<boolean>;
   refreshPoints: () => Promise<void>;
+  refreshRewards: () => Promise<void>;
 }
 
 const PointsContext = createContext<PointsContextType | undefined>(undefined);
@@ -25,10 +32,14 @@ export function PointsProvider({ children }: { children: ReactNode }) {
   const [balance, setBalance] = useState(0);
   const [history, setHistory] = useState<PointsTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [productRewards, setProductRewards] = useState<ProductPointsReward[]>([]);
 
   const pointsEnabled = settings?.points_enabled ?? false;
   const pointsRatio = settings?.points_ratio ?? 10;
-  const balanceInReais = balance / pointsRatio;
+
+  const rewardsByProductId: Record<string, ProductPointsReward> = Object.fromEntries(
+    productRewards.map((r) => [r.product_id, r])
+  );
 
   const loadPoints = useCallback(async () => {
     if (!isAuthenticated || !user?.phone) {
@@ -51,16 +62,34 @@ export function PointsProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated, user]);
 
+  const loadRewards = useCallback(async () => {
+    try {
+      const rewards = await getProductPointsRewards();
+      setProductRewards(rewards);
+    } catch (err) {
+      console.error("Erro ao carregar resgates:", err);
+    }
+  }, []);
+
   useEffect(() => {
     loadPoints();
   }, [loadPoints]);
 
-  const redeemPointsForDiscount = useCallback(async (
-    pointsToUse: number,
-    description: string
+  useEffect(() => {
+    loadRewards();
+  }, [loadRewards]);
+
+  const redeemForProduct = useCallback(async (
+    productId: string,
+    productName: string,
+    pointsRequired: number
   ): Promise<boolean> => {
     if (!user?.phone) return false;
-    const success = await redeemPointsLib(user.phone, pointsToUse, description);
+    const success = await redeemPointsLib(
+      user.phone,
+      pointsRequired,
+      `Resgate: ${productName} grátis`
+    );
     if (success) await loadPoints();
     return success;
   }, [user, loadPoints]);
@@ -69,16 +98,22 @@ export function PointsProvider({ children }: { children: ReactNode }) {
     await loadPoints();
   }, [loadPoints]);
 
+  const refreshRewards = useCallback(async () => {
+    await loadRewards();
+  }, [loadRewards]);
+
   return (
     <PointsContext.Provider value={{
       balance,
-      balanceInReais,
       history,
       isLoading,
       pointsEnabled,
       pointsRatio,
-      redeemPointsForDiscount,
+      productRewards,
+      rewardsByProductId,
+      redeemForProduct,
       refreshPoints,
+      refreshRewards,
     }}>
       {children}
     </PointsContext.Provider>

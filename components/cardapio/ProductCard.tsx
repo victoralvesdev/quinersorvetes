@@ -29,7 +29,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const { openModal: openLoginModal } = useLoginModal();
   const { isFavorited, toggleFavorite } = useFavorites();
   const fav = isFavorited(product.id);
-  const { balance, pointsEnabled, pointsRatio } = usePoints();
+  const { balance, pointsEnabled, rewardsByProductId } = usePoints();
   const { settings } = useSettings();
 
   const handleFavorite = (e: React.MouseEvent) => {
@@ -58,10 +58,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const isMobile = variant === "mobile";
 
-  // Points indicator
-  const pointsCost = Math.round(finalPrice * pointsRatio);
+  // Points indicator — based on product rewards set by admin
+  const reward = rewardsByProductId[product.id];
+  const showPoints = (settings?.points_enabled ?? pointsEnabled) && !!reward;
+  const pointsCost = reward?.points_required ?? 0;
   const hasEnoughPoints = balance >= pointsCost;
-  const showPoints = (settings?.points_enabled ?? pointsEnabled) && pointsCost > 0;
 
   return (
     <div
@@ -168,7 +169,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           )}>
             <span>🏆</span>
             <span>{pointsCost} pts</span>
-            {isAuthenticated && hasEnoughPoints && <span>· pode resgatar!</span>}
+            {isAuthenticated && hasEnoughPoints
+              ? <span>· resgate grátis!</span>
+              : isAuthenticated
+              ? <span>· faltam {pointsCost - balance} pts</span>
+              : null
+            }
           </div>
         )}
 

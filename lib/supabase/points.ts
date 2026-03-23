@@ -1,5 +1,5 @@
 import { supabase } from './client';
-import { PointsTransaction } from '@/types/points';
+import { PointsTransaction, ProductPointsReward } from '@/types/points';
 
 export async function getPointsBalance(userPhone: string): Promise<number> {
   const { data, error } = await supabase
@@ -113,6 +113,82 @@ export async function adminAdjustPoints(
 export interface UserPointsSummary {
   user_phone: string;
   balance: number;
+}
+
+// ─── Product Points Rewards ───────────────────────────────────────────────────
+
+export async function getProductPointsRewards(): Promise<ProductPointsReward[]> {
+  const { data, error } = await supabase
+    .from('product_points_rewards')
+    .select('*, products(name, image, price)')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erro ao buscar resgates de produtos:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    product_id: row.product_id,
+    points_required: row.points_required,
+    is_active: row.is_active,
+    created_at: row.created_at,
+    product_name: row.products?.name,
+    product_image: row.products?.image,
+    product_price: row.products?.price,
+  }));
+}
+
+export async function upsertProductPointsReward(
+  productId: string,
+  pointsRequired: number
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('product_points_rewards')
+    .upsert({ product_id: productId, points_required: pointsRequired, is_active: true }, { onConflict: 'product_id' });
+
+  if (error) {
+    console.error('Erro ao salvar resgate de produto:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function deleteProductPointsReward(productId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('product_points_rewards')
+    .delete()
+    .eq('product_id', productId);
+
+  if (error) {
+    console.error('Erro ao remover resgate de produto:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function bulkUpsertProductPointsRewards(
+  productIds: string[],
+  pointsRequired: number
+): Promise<boolean> {
+  if (productIds.length === 0) return true;
+
+  const rows = productIds.map((product_id) => ({
+    product_id,
+    points_required: pointsRequired,
+    is_active: true,
+  }));
+
+  const { error } = await supabase
+    .from('product_points_rewards')
+    .upsert(rows, { onConflict: 'product_id' });
+
+  if (error) {
+    console.error('Erro ao salvar resgates em lote:', error);
+    return false;
+  }
+  return true;
 }
 
 export async function getAllUsersPointsSummary(): Promise<UserPointsSummary[]> {

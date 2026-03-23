@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Plus, Minus, ShoppingBag, Trash2, IceCream, ArrowRight, Store, Tag, CheckCircle, Truck } from "lucide-react";
+import { X, Plus, Minus, ShoppingBag, Trash2, IceCream, ArrowRight, Store, Tag, CheckCircle, Truck, Trophy } from "lucide-react";
 import Image from "next/image";
 import { useCartStore } from "@/store/cartStore";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { calculateDiscount, markUserCouponAsUsed, incrementCouponUsage } from "@
 import { CheckoutModal } from "@/components/checkout/CheckoutModal";
 import { CheckoutData } from "@/types/checkout";
 import { useToast } from "@/components/ui/Toast";
+import { usePoints } from "@/contexts/PointsContext";
 import { createOrder } from "@/lib/supabase/orders";
 import { decrementProductStock } from "@/lib/supabase/products";
 import { decrementVariationItemStock } from "@/lib/supabase/variations";
@@ -187,6 +188,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
   const { openModal: openLoginModal } = useLoginModal();
   const { settings } = useSettings();
   const { selectedCoupon, selectCoupon, coupons } = useCoupons();
+  const { balance, pointsEnabled, rewardsByProductId, redeemForProduct } = usePoints();
   const isStoreOnline = settings.store_online !== false;
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
@@ -195,8 +197,18 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
   const getTotal = useCartStore((state) => state.getTotal);
   const getItemCount = useCartStore((state) => state.getItemCount);
   const clearCart = useCartStore((state) => state.clearCart);
+  const pointsRedeemedProductId = useCartStore((state) => state.pointsRedeemedProductId);
+  const setPointsRedeemedProduct = useCartStore((state) => state.setPointsRedeemedProduct);
   const { showToast } = useToast();
   const router = useRouter();
+
+  // Calcula desconto do produto resgatado com pontos (1 unidade do produto)
+  const redeemedItem = pointsRedeemedProductId
+    ? items.find((i) => i.product.id === pointsRedeemedProductId)
+    : null;
+  const pointsProductDiscount = redeemedItem
+    ? redeemedItem.product.price + (redeemedItem.additionalPrice || 0)
+    : 0;
 
   // Animation control
   useEffect(() => {
@@ -293,7 +305,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
 
       const subtotal = getTotal();
       const couponDiscount = selectedCoupon ? calculateDiscount(selectedCoupon.coupon, subtotal) : 0;
-      const totalFinal = Math.max(0, subtotal - couponDiscount);
+      const totalFinal = Math.max(0, subtotal - couponDiscount - pointsProductDiscount);
 
       const freightFee = checkoutData.freightFee || 0;
       const newOrder = await createOrder({
@@ -392,6 +404,18 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
       };
       sendWhatsApp();
 
+      // Deduzir pontos pelo produto resgatado
+      if (pointsRedeemedProductId && redeemedItem) {
+        const reward = rewardsByProductId[pointsRedeemedProductId];
+        if (reward) {
+          await redeemForProduct(
+            pointsRedeemedProductId,
+            redeemedItem.product.name,
+            reward.points_required
+          );
+        }
+      }
+
       clearCart();
       setIsCheckoutOpen(false);
       onClose();
@@ -415,7 +439,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
   const discount = selectedCoupon && !isFreeShippingCoupon
     ? calculateDiscount(selectedCoupon.coupon, total)
     : 0;
-  const finalTotal = Math.max(0, total - discount);
+  const finalTotal = Math.max(0, total - discount - pointsProductDiscount);
 
   return (
     <>
@@ -540,6 +564,78 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
               );
             })()}
 
+            {/* Banner de Resgate de Pontos */}
+            {isAuthenticated && pointsEnabled && (() => {
+              // Encontra itens no carrinho que têm resgates de pontos configurados
+              const redeemableItems = items.filter((item) => rewardsByProductId[item.product.id]);
+              if (redeemableItems.length === 0) return null;
+
+              return (
+                <div className="space-y-2">
+                  {redeemableItems.map((item) => {
+                    const reward = rewardsByProductId[item.product.id];
+                    const isRedeemed = pointsRedeemedProductId === item.product.id;
+                    const hasEnough = balance >= reward.points_required;
+                    const missing = reward.points_required - balance;
+                    const progress = Math.min(100, (balance / reward.points_required) * 100);
+
+                    return (
+                      <div
+                        key={item.product.id}
+                        className={cn(
+                          "rounded-xl border-2 p-3 transition-all duration-300",
+                          isRedeemed
+                            ? "border-violet-400 bg-violet-50"
+                            : hasEnough
+                            ? "border-violet-200 bg-violet-50/60"
+                            : "border-dashed border-secondary/20 bg-gray-50/50"
+                        )}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <Trophy className={cn("w-4 h-4 flex-shrink-0", hasEnough ? "text-violet-600" : "text-secondary/40")} />
+                          <span className={cn("text-sm font-semibold flex-1 line-clamp-1", hasEnough ? "text-violet-700" : "text-secondary/60")}>
+                            {isRedeemed
+                              ? `${item.product.name} grátis! 🎉`
+                              : hasEnough
+                              ? `${item.product.name} — resgate grátis!`
+                              : `${item.product.name}`
+                            }
+                          </span>
+                          {hasEnough && (
+                            <button
+                              onClick={() => setPointsRedeemedProduct(isRedeemed ? null : item.product.id)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex-shrink-0",
+                                isRedeemed
+                                  ? "bg-violet-500 text-white"
+                                  : "bg-violet-100 text-violet-700 hover:bg-violet-200"
+                              )}
+                            >
+                              {isRedeemed ? "✓ Ativo" : "Ativar"}
+                            </button>
+                          )}
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1.5 overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full transition-all duration-500", hasEnough ? "bg-violet-500" : "bg-primary")}
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-secondary/60">
+                          {isRedeemed
+                            ? `1 unidade grátis com ${reward.points_required} pts (você tem ${balance} pts)`
+                            : hasEnough
+                            ? `Você tem ${balance} pts — use ${reward.points_required} pts para ganhar 1 grátis!`
+                            : `Faltam ${missing} pts para resgatar 1 grátis (${reward.points_required} pts)`
+                          }
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             {/* Cupons de desconto */}
             {isAuthenticated && coupons.some(uc => uc.coupon.discount_type !== 'free_shipping') && (
               <div className="space-y-2">
@@ -594,6 +690,12 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-green-600">Desconto ({selectedCoupon?.coupon.code})</span>
                   <span className="text-green-600 font-semibold">-{formatCurrency(discount)}</span>
+                </div>
+              )}
+              {pointsProductDiscount > 0 && redeemedItem && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-violet-600">🏆 Resgate ({redeemedItem.product.name})</span>
+                  <span className="text-violet-600 font-semibold">-{formatCurrency(pointsProductDiscount)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between text-sm text-secondary/70">

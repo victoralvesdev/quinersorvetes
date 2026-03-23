@@ -7,3 +7,15 @@ export interface PointsTransaction {
   description?: string;
   created_at: string;
 }
+
+export interface ProductPointsReward {
+  id: string;
+  product_id: string;
+  points_required: number;
+  is_active: boolean;
+  created_at: string;
+  // joined from products
+  product_name?: string;
+  product_image?: string;
+  product_price?: number;
+}

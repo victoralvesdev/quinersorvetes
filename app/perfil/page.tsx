@@ -565,7 +565,7 @@ function FavoritesSection({ favorites, isLoading, onToggle }: {
 }
 
 function LoyaltySection() {
-  const { balance, balanceInReais, history, isLoading, pointsEnabled, pointsRatio } = usePoints();
+  const { balance, history, isLoading, pointsEnabled, productRewards } = usePoints();
 
   if (!pointsEnabled) return null;
 
@@ -581,7 +581,7 @@ function LoyaltySection() {
 
   const typeLabel = (type: string) => {
     if (type === "earned") return "Pontos ganhos";
-    if (type === "redeemed") return "Desconto aplicado";
+    if (type === "redeemed") return "Produto resgatado";
     return "Ajuste manual";
   };
 
@@ -593,8 +593,7 @@ function LoyaltySection() {
 
   const amountLabel = (tx: { type: string; amount: number }) => {
     const pts = tx.amount;
-    const reais = Math.abs(pts) / pointsRatio;
-    if (tx.type === "redeemed") return `-${formatCurrency(reais)}`;
+    if (tx.type === "redeemed") return `${pts} pts`;
     if (tx.type === "earned") return `+${pts} pts`;
     return `${pts > 0 ? "+" : ""}${pts} pts`;
   };
@@ -610,7 +609,9 @@ function LoyaltySection() {
               {balance} <span className="text-sm font-medium text-violet-500">pts</span>
             </p>
             <p className="text-sm text-violet-600 font-semibold mt-0.5">
-              = {formatCurrency(balanceInReais)} de desconto
+              {productRewards.length > 0
+                ? `Trocar por produtos grátis`
+                : `Acumule e resgate produtos grátis`}
             </p>
           </div>
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-lg">
@@ -618,9 +619,14 @@ function LoyaltySection() {
           </div>
         </div>
 
-        {balance > 0 && (
+        {balance > 0 && productRewards.length > 0 && (
           <p className="text-xs text-violet-500/70 mt-3 bg-white/50 rounded-xl px-3 py-2">
-            💡 Use seus pontos como desconto ao finalizar o próximo pedido
+            💡 Você pode trocar seus pontos por produtos grátis no carrinho!
+          </p>
+        )}
+        {balance > 0 && productRewards.length === 0 && (
+          <p className="text-xs text-violet-500/70 mt-3 bg-white/50 rounded-xl px-3 py-2">
+            💡 Continue acumulando pontos para resgatar produtos grátis em breve!
           </p>
         )}
       </div>
@@ -672,7 +678,7 @@ function QuickActions({ onOrdersClick, onFavoritesClick, onLoyaltyClick }: {
   onLoyaltyClick: () => void;
 }) {
   const { favorites } = useFavorites();
-  const { balance, balanceInReais } = usePoints();
+  const { balance } = usePoints();
   const { settings } = useSettings();
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -716,7 +722,7 @@ function QuickActions({ onOrdersClick, onFavoritesClick, onLoyaltyClick }: {
             </div>
             <div>
               <p className="font-semibold text-secondary-dark text-sm">Fidelidade</p>
-              <p className="text-xs text-violet-600 font-medium mt-0.5">{balance} pts · {formatCurrency(balanceInReais)}</p>
+              <p className="text-xs text-violet-600 font-medium mt-0.5">{balance} pts</p>
             </div>
           </div>
         </button>
