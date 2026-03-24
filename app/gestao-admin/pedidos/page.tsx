@@ -109,6 +109,7 @@ export default function PedidosAdminPage() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -162,6 +163,10 @@ export default function PedidosAdminPage() {
   };
 
   const handleStatusUpdate = async (orderId: string, newStatus: Order["status"]) => {
+    if (updatingOrderId) return;
+    setUpdatingOrderId(orderId);
+    // Optimistic update
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     try {
       const response = await fetch("/api/orders/update-status", {
         method: "POST",
@@ -177,11 +182,17 @@ export default function PedidosAdminPage() {
         showToast("Status atualizado com sucesso!", "success");
         loadData();
       } else {
+        // Revert optimistic update on failure
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: o.status } : o));
         showToast(result.error || "Erro ao atualizar status", "error");
+        loadData();
       }
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
       showToast("Erro ao atualizar status", "error");
+      loadData();
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -761,14 +772,16 @@ export default function PedidosAdminPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => handleStatusUpdate(order.id, "preparando")}
-                className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-sm"
+                disabled={updatingOrderId === order.id}
+                className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <CheckCircle className="w-4 h-4" />
-                Aceitar
+                {updatingOrderId === order.id ? "Atualizando..." : "Aceitar"}
               </button>
               <button
                 onClick={() => handleStatusUpdate(order.id, "cancelado")}
-                className="px-4 py-2.5 bg-white hover:bg-red-50 text-red-600 border-2 border-red-200 hover:border-red-300 rounded-xl text-sm font-semibold transition-all duration-200"
+                disabled={updatingOrderId === order.id}
+                className="px-4 py-2.5 bg-white hover:bg-red-50 text-red-600 border-2 border-red-200 hover:border-red-300 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <XCircle className="w-4 h-4" />
               </button>
@@ -778,14 +791,16 @@ export default function PedidosAdminPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => handleStatusUpdate(order.id, "saiu_entrega")}
-                className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-sm"
+                disabled={updatingOrderId === order.id}
+                className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Truck className="w-4 h-4" />
-                Saiu p/ Entrega
+                {updatingOrderId === order.id ? "Atualizando..." : "Saiu p/ Entrega"}
               </button>
               <button
                 onClick={() => handleStatusUpdate(order.id, "cancelado")}
-                className="px-4 py-2.5 bg-white hover:bg-red-50 text-red-600 border-2 border-red-200 hover:border-red-300 rounded-xl text-sm font-semibold transition-all duration-200"
+                disabled={updatingOrderId === order.id}
+                className="px-4 py-2.5 bg-white hover:bg-red-50 text-red-600 border-2 border-red-200 hover:border-red-300 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <XCircle className="w-4 h-4" />
               </button>
@@ -794,10 +809,11 @@ export default function PedidosAdminPage() {
           {order.status === "saiu_entrega" && (
             <button
               onClick={() => handleStatusUpdate(order.id, "entregue")}
-              className="w-full px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-sm"
+              disabled={updatingOrderId === order.id}
+              className="w-full px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <CheckCircle className="w-4 h-4" />
-              Marcar como Entregue
+              {updatingOrderId === order.id ? "Atualizando..." : "Marcar como Entregue"}
             </button>
           )}
         </div>
