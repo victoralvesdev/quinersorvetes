@@ -22,10 +22,8 @@ import {
   Printer
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
-import { getAllOrders, Order } from "@/lib/supabase/orders";
-import { getProducts } from "@/lib/supabase/products";
+import type { Order } from "@/lib/supabase/orders";
 import { Product, ProductVariation } from "@/types/product";
-import { getVariationsMapForProducts } from "@/lib/supabase/variations";
 import { useToast } from "@/components/ui/Toast";
 
 const statusConfig = {
@@ -118,12 +116,17 @@ export default function PedidosAdminPage() {
   }, []);
 
   const loadOrdersWithVariations = async () => {
-    const [ordersData, productsData] = await Promise.all([
-      getAllOrders(),
-      getProducts(),
+    const [ordersRes, productsRes] = await Promise.all([
+      fetch("/api/admin/orders"),
+      fetch("/api/products"),
     ]);
-    const productIds = [...new Set(ordersData.flatMap((o) => o.items.map((i) => i.product_id)))];
-    const varMap = await getVariationsMapForProducts(productIds);
+    const [ordersData, productsData] = await Promise.all([
+      ordersRes.json(),
+      productsRes.json(),
+    ]);
+    const productIds = [...new Set(ordersData.flatMap((o: Order) => o.items.map((i) => i.product_id)))];
+    const varMapRes = await fetch(`/api/admin/products/variations?productIds=${encodeURIComponent(JSON.stringify(productIds))}`);
+    const varMap = await varMapRes.json();
     return { ordersData, productsData, varMap };
   };
 

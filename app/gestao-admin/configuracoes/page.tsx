@@ -17,7 +17,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { useSettings } from "@/contexts/SettingsContext";
-import { getAllSettings, updateSettings } from "@/lib/supabase/settings";
 import {
   AllSettings,
   DEFAULT_ALL_SETTINGS,
@@ -130,7 +129,8 @@ export default function ConfiguracoesPage() {
   const loadSettings = useCallback(async () => {
     setIsLoading(true);
     try {
-      const fetchedSettings = await getAllSettings();
+      const res = await fetch("/api/settings");
+      const fetchedSettings = await res.json();
       setSettings(fetchedSettings);
       setOriginalSettings(fetchedSettings);
       setHasChanges(false);
@@ -188,7 +188,12 @@ export default function ConfiguracoesPage() {
         return;
       }
 
-      const success = await updateSettings(updates);
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates }),
+      });
+      const success = res.ok;
 
       if (success) {
         setOriginalSettings(settings);

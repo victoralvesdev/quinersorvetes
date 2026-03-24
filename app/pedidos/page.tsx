@@ -423,7 +423,8 @@ export default function PedidosPage() {
     if (!user) return;
     setIsRefreshing(true);
     try {
-      const userOrders = await getUserOrders(user.id);
+      const res = await fetch(`/api/orders?userId=${encodeURIComponent(user.id)}`);
+      const userOrders: Order[] = res.ok ? await res.json() : [];
       setOrders(userOrders);
     } catch (error) {
       console.error("Erro ao atualizar pedidos:", error);

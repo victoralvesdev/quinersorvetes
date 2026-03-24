@@ -12,13 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  getFreightZones,
-  createFreightZone,
-  updateFreightZone,
-  deleteFreightZone,
-  FreightZone,
-} from "@/lib/supabase/freight";
+import type { FreightZone } from "@/lib/supabase/freight";
 import { useToast } from "@/components/ui/Toast";
 
 const EMPTY_FORM = {
@@ -157,7 +151,8 @@ export default function FretePage() {
 
   const load = async () => {
     setIsLoading(true);
-    const data = await getFreightZones();
+    const res = await fetch("/api/admin/freight");
+    const data = await res.json();
     setZones(data);
     setIsLoading(false);
   };
@@ -168,9 +163,13 @@ export default function FretePage() {
 
   const handleCreate = async (data: Omit<FreightZone, "id" | "active">) => {
     setIsSaving(true);
-    const result = await createFreightZone({ ...data, active: true });
+    const res = await fetch("/api/admin/freight", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...data, active: true }),
+    });
     setIsSaving(false);
-    if (result) {
+    if (res.ok) {
       showToast("Zona criada com sucesso", "success");
       setShowCreateForm(false);
       await load();
@@ -181,9 +180,13 @@ export default function FretePage() {
 
   const handleUpdate = async (id: string, data: Omit<FreightZone, "id" | "active">) => {
     setIsSaving(true);
-    const result = await updateFreightZone(id, data);
+    const res = await fetch("/api/admin/freight", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...data }),
+    });
     setIsSaving(false);
-    if (result) {
+    if (res.ok) {
       showToast("Zona atualizada", "success");
       setEditingId(null);
       await load();
@@ -193,8 +196,13 @@ export default function FretePage() {
   };
 
   const handleToggleActive = async (zone: FreightZone) => {
-    const result = await updateFreightZone(zone.id, { active: !zone.active });
-    if (result) {
+    const res = await fetch("/api/admin/freight", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: zone.id, active: !zone.active }),
+    });
+    if (res.ok) {
+      const result: FreightZone = await res.json();
       showToast(result.active ? "Zona ativada" : "Zona desativada", "success");
       setZones((prev) => prev.map((z) => (z.id === zone.id ? result : z)));
     } else {
@@ -205,9 +213,13 @@ export default function FretePage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir esta zona de frete?")) return;
     setDeletingId(id);
-    const ok = await deleteFreightZone(id);
+    const res = await fetch("/api/admin/freight", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
     setDeletingId(null);
-    if (ok) {
+    if (res.ok) {
       showToast("Zona excluída", "success");
       setZones((prev) => prev.filter((z) => z.id !== id));
     } else {

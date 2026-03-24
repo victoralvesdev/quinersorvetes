@@ -21,13 +21,10 @@ import {
   Banknote,
   QrCode
 } from "lucide-react";
-import { getAllOrders } from "@/lib/supabase/orders";
-import { getProducts } from "@/lib/supabase/products";
-import { Order } from "@/lib/supabase/orders";
+import type { Order } from "@/lib/supabase/orders";
 import { Product } from "@/types/product";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
-import { updateOrderStatus } from "@/lib/supabase/orders";
 
 function StatCardSkeleton() {
   return (
@@ -79,10 +76,12 @@ export default function GestaoAdminPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [ordersData, productsData] = await Promise.all([
-        getAllOrders(),
-        getProducts(),
+      const [ordersRes, productsRes] = await Promise.all([
+        fetch("/api/admin/orders"),
+        fetch("/api/products"),
       ]);
+      const ordersData = await ordersRes.json();
+      const productsData = await productsRes.json();
       setOrders(ordersData);
       setProducts(productsData);
     } catch (error) {
@@ -95,10 +94,17 @@ export default function GestaoAdminPage() {
 
   const handleStatusUpdate = async (orderId: string, newStatus: Order["status"]) => {
     try {
-      const updated = await updateOrderStatus(orderId, newStatus);
-      if (updated) {
+      const res = await fetch("/api/admin/orders/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, status: newStatus }),
+      });
+      const result = await res.json();
+      if (result.ok) {
         showToast("Status atualizado com sucesso!", "success");
         loadData();
+      } else {
+        showToast("Erro ao atualizar status", "error");
       }
     } catch (error) {
       console.error("Erro ao atualizar status:", error);

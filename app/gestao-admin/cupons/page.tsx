@@ -23,12 +23,6 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
-import {
-  getAllCoupons,
-  createCoupon,
-  updateCoupon,
-  deleteCoupon,
-} from "@/lib/supabase/coupons";
 import { Coupon, CouponFormData } from "@/types/coupon";
 import { useToast } from "@/components/ui/Toast";
 
@@ -79,7 +73,8 @@ export default function CuponsPage() {
   const loadCoupons = async () => {
     setIsLoading(true);
     try {
-      const data = await getAllCoupons();
+      const res = await fetch("/api/admin/coupons");
+      const data = await res.json();
       setCoupons(data);
     } catch (error) {
       console.error("Erro ao carregar cupons:", error);
@@ -160,10 +155,18 @@ export default function CuponsPage() {
       };
 
       if (editingCoupon) {
-        await updateCoupon(editingCoupon.id, couponData);
+        await fetch("/api/admin/coupons", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingCoupon.id, ...couponData }),
+        });
         showToast("Cupom atualizado com sucesso!", "success");
       } else {
-        await createCoupon(couponData);
+        await fetch("/api/admin/coupons", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(couponData),
+        });
         showToast("Cupom criado com sucesso!", "success");
       }
 
@@ -190,7 +193,11 @@ export default function CuponsPage() {
     }
 
     try {
-      await deleteCoupon(coupon.id);
+      await fetch("/api/admin/coupons", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: coupon.id }),
+      });
       showToast("Cupom excluído com sucesso!", "success");
       await loadCoupons();
     } catch (error) {
@@ -206,7 +213,11 @@ export default function CuponsPage() {
 
   const toggleCouponStatus = async (coupon: Coupon) => {
     try {
-      await updateCoupon(coupon.id, { is_active: !coupon.is_active });
+      await fetch("/api/admin/coupons", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: coupon.id, is_active: !coupon.is_active }),
+      });
       showToast(
         `Cupom ${coupon.is_active ? "desativado" : "ativado"} com sucesso!`,
         "success"

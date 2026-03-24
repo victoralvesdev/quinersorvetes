@@ -32,12 +32,8 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
-import { getProducts, createProduct, updateProduct, deleteProduct, getProductById, duplicateProduct } from "@/lib/supabase/products";
-import { getCategories } from "@/lib/supabase/categories";
 import { Product, Category, ProductVariation } from "@/types/product";
 import { useToast } from "@/components/ui/Toast";
-import { uploadImageFile } from "@/lib/supabase/storage";
-import { getProductVariations, saveProductVariations } from "@/lib/supabase/variations";
 
 function ProductCardSkeleton() {
   return (
@@ -122,9 +118,13 @@ export default function ProdutosPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
+      const [productsRes, categoriesRes] = await Promise.all([
+        fetch("/api/products"),
+        fetch("/api/categories"),
+      ]);
       const [productsData, categoriesData] = await Promise.all([
-        getProducts(),
-        getCategories(),
+        productsRes.json(),
+        categoriesRes.json(),
       ]);
       setProducts(productsData);
       setCategories(categoriesData);
@@ -139,9 +139,13 @@ export default function ProdutosPage() {
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
+      const [productsRes, categoriesRes] = await Promise.all([
+        fetch("/api/products"),
+        fetch("/api/categories"),
+      ]);
       const [productsData, categoriesData] = await Promise.all([
-        getProducts(),
-        getCategories(),
+        productsRes.json(),
+        categoriesRes.json(),
       ]);
       setProducts(productsData);
       setCategories(categoriesData);
@@ -203,9 +207,15 @@ export default function ProdutosPage() {
         return;
       }
 
-      const imageUrl = await uploadImageFile(file);
-      if (imageUrl) {
-        setFormData({ ...formData, image: imageUrl });
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      const uploadRes = await fetch("/api/admin/storage/upload", {
+        method: "POST",
+        body: uploadFormData,
+      });
+      if (uploadRes.ok) {
+        const { url } = await uploadRes.json();
+        setFormData({ ...formData, image: url });
         showToast("Imagem enviada com sucesso!", "success");
       } else {
         showToast("Erro ao enviar imagem", "error");
@@ -261,7 +271,8 @@ export default function ProdutosPage() {
         low_stock_threshold: product.low_stock_threshold != null ? String(product.low_stock_threshold) : "",
       });
       // Carregar variações do produto
-      const productVariations = await getProductVariations(product.id);
+      const variationsRes = await fetch(`/api/admin/products/variations?productId=${product.id}`);
+      const productVariations = await variationsRes.json();
       setVariations(productVariations.map(v => ({
         name: v.name,
         required: v.required,
@@ -330,18 +341,23 @@ export default function ProdutosPage() {
       let productId: string | null = null;
 
       if (editingProduct) {
-        const updated = await updateProduct(editingProduct.id, {
-          name: formData.name,
-          description: formData.description,
-          price: priceValue,
-          category_id: formData.category,
-          image: formData.image,
-          available: formData.available,
-          price_from: formData.price_from,
-          stock_quantity: stockQty,
-          low_stock_threshold: stockThreshold,
+        const res = await fetch("/api/admin/products", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editingProduct.id,
+            name: formData.name,
+            description: formData.description,
+            price: priceValue,
+            category_id: formData.category,
+            image: formData.image,
+            available: formData.available,
+            price_from: formData.price_from,
+            stock_quantity: stockQty,
+            low_stock_threshold: stockThreshold,
+          }),
         });
-        if (updated) {
+        if (res.ok) {
           productId = editingProduct.id;
           // Envia alerta se estoque mudou e está abaixo do limite
           const prevStock = editingProduct.stock_quantity;
@@ -358,18 +374,23 @@ export default function ProdutosPage() {
           return;
         }
       } else {
-        const created = await createProduct({
-          name: formData.name,
-          description: formData.description,
-          price: priceValue,
-          category_id: formData.category,
-          image: formData.image,
-          available: formData.available,
-          price_from: formData.price_from,
-          stock_quantity: stockQty,
-          low_stock_threshold: stockThreshold,
+        const res = await fetch("/api/admin/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            price: priceValue,
+            category_id: formData.category,
+            image: formData.image,
+            available: formData.available,
+            price_from: formData.price_from,
+            stock_quantity: stockQty,
+            low_stock_threshold: stockThreshold,
+          }),
         });
-        if (created) {
+        if (res.ok) {
+          const created = await res.json();
           productId = created.id;
           // Envia alerta se novo produto já começa com estoque baixo
           if (stockQty !== null && stockThreshold !== null && stockQty <= stockThreshold) {
@@ -383,8 +404,12 @@ export default function ProdutosPage() {
 
       // Salvar variações
       if (productId) {
-        const variationsSaved = await saveProductVariations(productId, variations);
-        if (!variationsSaved) {
+        const variationsRes = await fetch("/api/admin/products/variations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId, variations }),
+        });
+        if (!variationsRes.ok) {
           showToast("Produto salvo, mas houve erro ao salvar variações", "error");
         }
       }
@@ -453,8 +478,12 @@ export default function ProdutosPage() {
     if (!confirm("Tem certeza que deseja excluir este produto?")) return;
 
     try {
-      const success = await deleteProduct(id);
-      if (success) {
+      const res = await fetch("/api/admin/products", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
         showToast("Produto excluido com sucesso!", "success");
         loadData();
       }
@@ -466,8 +495,12 @@ export default function ProdutosPage() {
 
   const handleDuplicate = async (product: Product) => {
     try {
-      const duplicated = await duplicateProduct(product.id);
-      if (duplicated) {
+      const res = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "duplicate", id: product.id }),
+      });
+      if (res.ok) {
         showToast(`"${product.name}" duplicado com sucesso!`, "success");
         loadData();
       } else {
@@ -481,10 +514,12 @@ export default function ProdutosPage() {
 
   const handleToggleAvailability = async (product: Product) => {
     try {
-      const updated = await updateProduct(product.id, {
-        available: !product.available,
+      const res = await fetch("/api/admin/products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: product.id, available: !product.available }),
       });
-      if (updated) {
+      if (res.ok) {
         showToast(
           product.available ? "Produto desativado" : "Produto ativado",
           "success"

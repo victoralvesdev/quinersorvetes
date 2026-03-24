@@ -19,16 +19,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import {
-  getAllUsersPointsSummary,
-  getPointsHistory,
-  adminAdjustPoints,
-  UserPointsSummary,
-  getProductPointsRewards,
-  bulkUpsertProductPointsRewards,
-  deleteProductPointsReward,
-} from "@/lib/supabase/points";
-import { getProducts } from "@/lib/supabase/products";
+import type { UserPointsSummary } from "@/lib/supabase/points";
 import { PointsTransaction, ProductPointsReward } from "@/types/points";
 import { Product } from "@/types/product";
 import { cn } from "@/lib/utils";
@@ -65,7 +56,8 @@ export default function FidelidadePage() {
   const loadClientes = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await getAllUsersPointsSummary();
+      const res = await fetch("/api/admin/points?type=summaries");
+      const data = await res.json();
       setSummaries(data);
     } finally {
       setIsLoading(false);
@@ -75,9 +67,13 @@ export default function FidelidadePage() {
   const loadRewards = useCallback(async () => {
     setIsRewardsLoading(true);
     try {
+      const [rewardsRes, productsRes] = await Promise.all([
+        fetch("/api/admin/points?type=rewards"),
+        fetch("/api/products"),
+      ]);
       const [rewardsData, productsData] = await Promise.all([
-        getProductPointsRewards(),
-        getProducts(),
+        rewardsRes.json(),
+        productsRes.json(),
       ]);
       setRewards(rewardsData);
       setProducts(productsData);
@@ -96,7 +92,8 @@ export default function FidelidadePage() {
     setAdjustDesc("");
     setIsHistoryLoading(true);
     try {
-      const hist = await getPointsHistory(phone);
+      const res = await fetch(`/api/admin/points?type=history&phone=${encodeURIComponent(phone)}`);
+      const hist = await res.json();
       setHistory(hist);
     } finally {
       setIsHistoryLoading(false);
@@ -114,7 +111,12 @@ export default function FidelidadePage() {
       return;
     }
     setIsSaving(true);
-    const ok = await adminAdjustPoints(selectedPhone, sign * amount, adjustDesc.trim());
+    const res = await fetch("/api/admin/points", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "adjust", phone: selectedPhone, amount: sign * amount, description: adjustDesc.trim() }),
+    });
+    const ok = res.ok;
     setIsSaving(false);
     if (ok) {
       showToast(`Pontos ${sign > 0 ? "adicionados" : "removidos"} com sucesso.`, "success");
@@ -151,7 +153,12 @@ export default function FidelidadePage() {
       return;
     }
     setIsSavingRewards(true);
-    const ok = await bulkUpsertProductPointsRewards(Array.from(selectedProductIds), pts);
+    const res = await fetch("/api/admin/points", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "bulkUpsertRewards", rewards: Array.from(selectedProductIds).map((id) => ({ product_id: id, points_required: pts })) }),
+    });
+    const ok = res.ok;
     setIsSavingRewards(false);
     if (ok) {
       showToast(`Resgate definido: ${pts} pts para ${selectedProductIds.size} produto(s).`, "success");
@@ -169,7 +176,12 @@ export default function FidelidadePage() {
       showToast("Informe um valor válido.", "error");
       return;
     }
-    const ok = await bulkUpsertProductPointsRewards([productId], pts);
+    const res = await fetch("/api/admin/points", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "bulkUpsertRewards", rewards: [{ product_id: productId, points_required: pts }] }),
+    });
+    const ok = res.ok;
     if (ok) {
       showToast(`Resgate de "${productName}" atualizado: ${pts} pts.`, "success");
       setEditingRewardId(null);
@@ -181,8 +193,13 @@ export default function FidelidadePage() {
   };
 
   const handleDeleteReward = async (productId: string, productName: string) => {
-    const ok = await deleteProductPointsReward(productId);
-    if (ok) {
+    const res = await fetch("/api/admin/points", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId }),
+    });
+    const result = await res.json();
+    if (result.ok) {
       showToast(`Resgate de "${productName}" removido.`, "success");
       await loadRewards();
     } else {

@@ -26,9 +26,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
-import { getAllOrders, Order } from "@/lib/supabase/orders";
-import { getProducts } from "@/lib/supabase/products";
-import { getAllUsers } from "@/lib/supabase/users";
+import type { Order } from "@/lib/supabase/orders";
 import { Product } from "@/types/product";
 import { useToast } from "@/components/ui/Toast";
 
@@ -76,10 +74,15 @@ export default function RelatoriosPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
+      const [ordersRes, productsRes, usersRes] = await Promise.all([
+        fetch("/api/admin/orders"),
+        fetch("/api/products"),
+        fetch("/api/admin/users"),
+      ]);
       const [ordersData, productsData, usersData] = await Promise.all([
-        getAllOrders(),
-        getProducts(),
-        getAllUsers(),
+        ordersRes.json(),
+        productsRes.json(),
+        usersRes.json(),
       ]);
       setOrders(ordersData);
       setProducts(productsData);

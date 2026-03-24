@@ -18,10 +18,8 @@ import {
   Clock,
   Award
 } from "lucide-react";
-import { getAllUsers } from "@/lib/supabase/users";
-import { getAllOrders } from "@/lib/supabase/orders";
 import { User as UserType } from "@/types/user";
-import { Order } from "@/lib/supabase/orders";
+import type { Order } from "@/lib/supabase/orders";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 
@@ -105,9 +103,13 @@ export default function ClientesPage() {
   const loadClients = async () => {
     setIsLoading(true);
     try {
+      const [usersRes, ordersRes] = await Promise.all([
+        fetch("/api/admin/users"),
+        fetch("/api/admin/orders"),
+      ]);
       const [users, orders] = await Promise.all([
-        getAllUsers(),
-        getAllOrders(),
+        usersRes.json(),
+        ordersRes.json(),
       ]);
 
       const clientsWithStats: ClientWithStats[] = users.map((user) => {

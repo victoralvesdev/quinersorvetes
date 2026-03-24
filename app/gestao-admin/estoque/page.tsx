@@ -17,8 +17,6 @@ import {
   Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getProducts, updateProduct } from "@/lib/supabase/products";
-import { getVariationsMapForProducts, updateVariationItemStock } from "@/lib/supabase/variations";
 import { Product, ProductVariation, ProductVariationItem } from "@/types/product";
 import { useToast } from "@/components/ui/Toast";
 import { useNotifications } from "@/contexts/NotificationsContext";
@@ -122,9 +120,11 @@ export default function EstoquePage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const products = await getProducts();
-      const productIds = products.map((p) => p.id);
-      const variationsMap = await getVariationsMapForProducts(productIds);
+      const productsRes = await fetch("/api/products");
+      const products = await productsRes.json();
+      const productIds = products.map((p: Product) => p.id);
+      const variationsRes = await fetch(`/api/admin/products/variations?productIds=${encodeURIComponent(JSON.stringify(productIds))}`);
+      const variationsMap = await variationsRes.json();
 
       const built: ProductRow[] = products.map((product) => {
         const variations = variationsMap[product.id] || [];
@@ -233,7 +233,12 @@ export default function EstoquePage() {
         ...dirtyProducts.map(async (r) => {
           const qty = r.productStock.qty !== "" ? parseInt(r.productStock.qty, 10) : null;
           const threshold = r.productStock.threshold !== "" ? parseInt(r.productStock.threshold, 10) : null;
-          const ok = await updateProduct(r.product.id, { stock_quantity: qty, low_stock_threshold: threshold });
+          const res = await fetch("/api/admin/products/stock", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "product", id: r.product.id, stockQuantity: qty, lowStockThreshold: threshold }),
+          });
+          const ok = res.ok;
           if (ok) {
             saved++;
             if (qty !== null && threshold !== null && qty <= threshold) {
@@ -246,7 +251,12 @@ export default function EstoquePage() {
         ...dirtyItems.map(async ({ row, itemId, s }) => {
           const qty = s.qty !== "" ? parseInt(s.qty, 10) : null;
           const threshold = s.threshold !== "" ? parseInt(s.threshold, 10) : null;
-          const ok = await updateVariationItemStock(itemId, qty, threshold);
+          const res = await fetch("/api/admin/products/stock", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "variation", id: itemId, stockQuantity: qty, lowStockThreshold: threshold }),
+          });
+          const ok = res.ok;
           if (ok) {
             saved++;
             // encontra o item para compor a mensagem de alerta
