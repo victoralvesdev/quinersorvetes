@@ -121,10 +121,10 @@ export default function EstoquePage() {
     setLoading(true);
     try {
       const productsRes = await fetch("/api/products");
-      const products = await productsRes.json();
+      const products: Product[] = await productsRes.json();
       const productIds = products.map((p: Product) => p.id);
       const variationsRes = await fetch(`/api/admin/products/variations?productIds=${encodeURIComponent(JSON.stringify(productIds))}`);
-      const variationsMap = await variationsRes.json();
+      const variationsMap: Record<string, ProductVariation[]> = await variationsRes.json();
 
       const built: ProductRow[] = products.map((product) => {
         const variations = variationsMap[product.id] || [];

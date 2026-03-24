@@ -219,7 +219,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const fetchPendingOrders = async () => {
     try {
       const res = await fetch('/api/admin/orders');
-      const orders = res.ok ? await res.json() : [];
+      const orders: { status: string }[] = res.ok ? await res.json() : [];
       const newOrders = orders.filter(order => order.status === "novo");
       setPendingOrders(newOrders.length);
     } catch (error) {

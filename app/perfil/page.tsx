@@ -818,7 +818,8 @@ export default function PerfilPage() {
   const refreshAddresses = async () => {
     if (!user) return;
     try {
-      const userAddresses = await getUserAddresses(user.id);
+      const res = await fetch(`/api/addresses?userId=${encodeURIComponent(user.id)}`);
+      const userAddresses: Address[] = res.ok ? await res.json() : [];
       setAddresses(userAddresses);
     } catch (error) {
       console.error("Erro ao atualizar endereços:", error);

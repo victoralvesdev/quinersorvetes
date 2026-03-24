@@ -272,7 +272,7 @@ export default function ProdutosPage() {
       });
       // Carregar variações do produto
       const variationsRes = await fetch(`/api/admin/products/variations?productId=${product.id}`);
-      const productVariations = await variationsRes.json();
+      const productVariations: ProductVariation[] = await variationsRes.json();
       setVariations(productVariations.map(v => ({
         name: v.name,
         required: v.required,
