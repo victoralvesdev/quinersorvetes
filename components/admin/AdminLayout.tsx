@@ -32,6 +32,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import { StoreHoursModal } from "./StoreHoursModal";
 import { StoreHours } from "@/types/settings";
+import { useToast } from "@/components/ui/Toast";
 
 const navigation = [
   { name: "Dashboard", href: "/gestao-admin", icon: Home },
@@ -117,6 +118,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [isTogglingStore, setIsTogglingStore] = useState(false);
+  const { showToast } = useToast();
   const prevPendingRef = useRef<number | null>(null);
 
   const isStoreOnline = settings.store_online !== false;
@@ -129,12 +131,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const handleToggleStore = async () => {
     setIsTogglingStore(true);
     try {
-      await fetch('/api/settings', {
+      const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'store_online', value: !isStoreOnline }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao atualizar');
+      }
       await refreshSettings();
+      showToast(isStoreOnline ? 'Loja fechada com sucesso' : 'Loja aberta com sucesso', 'success');
+    } catch (error: any) {
+      console.error('Erro ao alternar loja:', error);
+      showToast(error?.message || 'Erro ao alterar status da loja', 'error');
     } finally {
       setIsTogglingStore(false);
     }
