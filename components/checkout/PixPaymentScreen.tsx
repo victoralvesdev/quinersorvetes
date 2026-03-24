@@ -20,8 +20,10 @@ import Image from "next/image";
 interface PixPaymentScreenProps {
   amount: number;
   orderId?: string;
+  savedCpf?: string;
   onBack: () => void;
   onPaymentCreated?: (paymentId: string) => void;
+  onCpfSaved?: (cpf: string) => Promise<void>;
   onContinue: () => void;
 }
 
@@ -77,12 +79,14 @@ function validarCPF(cpf: string) {
 export function PixPaymentScreen({
   amount,
   orderId,
+  savedCpf,
   onBack,
   onPaymentCreated,
+  onCpfSaved,
   onContinue,
 }: PixPaymentScreenProps) {
-  const [cpf, setCpf] = useState("");
-  const [cpfConfirmado, setCpfConfirmado] = useState(false);
+  const [cpf, setCpf] = useState(savedCpf || "");
+  const [cpfConfirmado, setCpfConfirmado] = useState(!!savedCpf);
   const [pixData, setPixData] = useState<PixData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -231,6 +235,7 @@ export function PixPaymentScreen({
                 return;
               }
               setCpfConfirmado(true);
+              if (onCpfSaved) onCpfSaved(cpf.replace(/\D/g, ""));
             }}
             disabled={!cpfValido}
             className="w-full py-4 rounded-xl font-bold text-base bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg shadow-primary/25 hover:shadow-xl active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"

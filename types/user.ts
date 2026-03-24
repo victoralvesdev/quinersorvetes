@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   phone: string;
+  cpf?: string;
   created_at: string;
   updated_at: string;
 }

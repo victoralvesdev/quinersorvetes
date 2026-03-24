@@ -54,7 +54,7 @@ interface FreightInfo {
 }
 
 export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: CheckoutModalProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshUser } = useAuth();
   const [step, setStep] = useState<CheckoutStep>("address");
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | undefined>();
@@ -296,12 +296,26 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
           {step === "pix" ? (
             <PixPaymentScreen
               amount={amount}
+              savedCpf={user?.cpf}
               onBack={() => {
                 setStep("payment");
                 setPixPaymentId(undefined);
               }}
               onPaymentCreated={(paymentId) => {
                 setPixPaymentId(paymentId);
+              }}
+              onCpfSaved={async (cpf) => {
+                if (!user) return;
+                try {
+                  await fetch('/api/users', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.id, cpf }),
+                  });
+                  await refreshUser();
+                } catch {
+                  // silencia — CPF já foi usado para gerar o PIX
+                }
               }}
               onContinue={() => handleFinishCheckout(true)}
             />

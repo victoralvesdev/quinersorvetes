@@ -11,6 +11,7 @@ interface AuthContextType {
   register: (data: UserFormData) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -99,6 +100,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshUser = async () => {
+    if (!user?.phone) return;
+    try {
+      const res = await fetch(`/api/users?phone=${encodeURIComponent(user.phone)}`);
+      const userData: User | null = res.ok ? await res.json() : null;
+      if (userData) setUser(userData);
+    } catch {
+      // silencia
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -108,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         isAuthenticated: !!user,
+        refreshUser,
       }}
     >
       {children}

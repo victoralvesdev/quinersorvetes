@@ -96,7 +96,7 @@ export async function createUser(userData: UserFormData): Promise<User> {
 /**
  * Atualiza um usuário existente
  */
-export async function updateUser(userId: string, userData: Partial<UserFormData>): Promise<User> {
+export async function updateUser(userId: string, userData: Partial<UserFormData> & { cpf?: string }): Promise<User> {
   try {
     const { data, error } = await supabase
       .from('users')
