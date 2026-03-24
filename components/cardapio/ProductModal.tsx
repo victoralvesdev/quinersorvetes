@@ -6,7 +6,6 @@ import { Product } from "@/types/product";
 import { useCartStore } from "@/store/cartStore";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
-import { getProductById } from "@/lib/supabase/products";
 
 interface ProductModalProps {
   product: Product | null;
@@ -55,7 +54,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
     setIsLoadingVariations(true);
     try {
-      const fullProduct = await getProductById(productId);
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}`);
+      const fullProduct = res.ok ? await res.json() : null;
       if (fullProduct) {
         variationsCache.set(productId, fullProduct);
         setProductWithVariations(fullProduct);

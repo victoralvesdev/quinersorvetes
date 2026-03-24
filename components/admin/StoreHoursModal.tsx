@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Clock, X, Save, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
-import { upsertSetting } from "@/lib/supabase/settings";
 import { StoreHours, DaySchedule } from "@/types/settings";
 
 const DAYS: { key: keyof Omit<StoreHours, "auto">; label: string }[] = [
@@ -50,7 +49,12 @@ export function StoreHoursModal({ storeHours, onClose, onSaved }: Props) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const ok = await upsertSetting("store_hours", hours, "appearance", true);
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'store_hours', value: hours, category: 'appearance', is_public: true, upsert: true }),
+      });
+      const ok = res.ok;
       if (ok) {
         showToast("Horários salvos com sucesso!", "success");
         onSaved(hours);

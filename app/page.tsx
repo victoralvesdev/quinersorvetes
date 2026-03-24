@@ -11,8 +11,6 @@ import { LoginModal } from "@/components/auth/LoginModal";
 import { Product, Category } from "@/types/product";
 import { useCartContext } from "@/contexts/CartContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
-import { getProducts } from "@/lib/supabase/products";
-import { getCategories } from "@/lib/supabase/categories";
 import { cn } from "@/lib/utils";
 
 // Category icons mapping
@@ -282,9 +280,13 @@ export default function Home() {
     const loadData = async () => {
       try {
         setIsLoading(true);
+        const [productsRes, categoriesRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/categories'),
+        ]);
         const [productsData, categoriesData] = await Promise.all([
-          getProducts(),
-          getCategories(),
+          productsRes.json(),
+          categoriesRes.json(),
         ]);
 
         setProducts(productsData);

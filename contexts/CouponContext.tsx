@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { UserCoupon } from "@/types/coupon";
-import { getUserCoupons } from "@/lib/supabase/coupons";
 import { useAuth } from "./AuthContext";
 
 interface CouponContextType {
@@ -30,7 +29,8 @@ export function CouponProvider({ children }: { children: ReactNode }) {
 
     try {
       setIsLoading(true);
-      const userCoupons = await getUserCoupons(user.id);
+      const res = await fetch(`/api/coupons?userId=${encodeURIComponent(user.id)}`);
+      const userCoupons: UserCoupon[] = res.ok ? await res.json() : [];
       setCoupons(userCoupons);
     } catch (error) {
       console.error("Erro ao carregar cupons:", error);

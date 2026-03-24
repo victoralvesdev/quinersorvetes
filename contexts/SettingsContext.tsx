@@ -9,7 +9,6 @@ import React, {
   ReactNode,
 } from "react";
 import { PublicSettings, DEFAULT_PUBLIC_SETTINGS } from "@/types/settings";
-import { getPublicSettings } from "@/lib/supabase/settings";
 
 const SETTINGS_STORAGE_KEY = "quiner_settings_cache";
 
@@ -73,7 +72,9 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const fetchedSettings = await getPublicSettings();
+      const res = await fetch('/api/settings/public');
+      if (!res.ok) throw new Error('Failed to fetch settings');
+      const fetchedSettings: PublicSettings = await res.json();
       setSettings(fetchedSettings);
       cacheSettings(fetchedSettings); // Cache for next page load
     } catch (err) {

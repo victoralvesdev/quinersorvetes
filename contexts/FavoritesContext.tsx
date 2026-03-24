@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { Product } from "@/types/product";
-import { getUserFavorites, addFavorite, removeFavorite } from "@/lib/supabase/favorites";
 import { useAuth } from "./AuthContext";
 
 interface FavoritesContextType {
@@ -30,7 +29,8 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const data = await getUserFavorites(user.id);
+      const res = await fetch(`/api/favorites?userId=${encodeURIComponent(user.id)}`);
+      const data: Product[] = res.ok ? await res.json() : [];
       setFavorites(data);
     } catch (err) {
       console.error("Erro ao carregar favoritos:", err);
@@ -51,10 +51,18 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     // Otimistic update
     if (alreadyFav) {
       setFavorites((prev) => prev.filter((p) => p.id !== product.id));
-      await removeFavorite(user.id, product.id);
+      await fetch('/api/favorites', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, productId: product.id }),
+      });
     } else {
       setFavorites((prev) => [product, ...prev]);
-      await addFavorite(user.id, product.id);
+      await fetch('/api/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, productId: product.id }),
+      });
     }
   }, [user, favoriteIds]);
 

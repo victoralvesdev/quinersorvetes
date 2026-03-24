@@ -8,8 +8,6 @@ import { SearchBar } from "@/components/cardapio/SearchBar";
 import { Cart } from "@/components/cardapio/Cart";
 import { ProductModal } from "@/components/cardapio/ProductModal";
 import { Button } from "@/components/ui/Button";
-import { getProducts } from "@/lib/supabase/products";
-import { getCategories } from "@/lib/supabase/categories";
 import { Product, Category } from "@/types/product";
 import { useCartStore } from "@/store/cartStore";
 
@@ -28,9 +26,13 @@ export default function CardapioPage() {
     async function loadData() {
       setIsLoading(true);
       try {
+        const [productsRes, categoriesRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/categories'),
+        ]);
         const [productsData, categoriesData] = await Promise.all([
-          getProducts(),
-          getCategories(),
+          productsRes.json(),
+          categoriesRes.json(),
         ]);
         setProducts(productsData);
         setCategories(categoriesData);

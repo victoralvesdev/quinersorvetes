@@ -8,7 +8,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
-import { getUserByPhone } from "@/lib/supabase/users";
 
 const loginSchema = z.object({
   phone: z
@@ -238,7 +237,8 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     setNotRegisteredInfo(null);
 
     try {
-      const existingUser = await getUserByPhone(cleanedPhone);
+      const userRes = await fetch(`/api/users?phone=${encodeURIComponent(cleanedPhone)}`);
+      const existingUser = userRes.ok ? await userRes.json() : null;
 
       if (!existingUser) {
         // Usuário não cadastrado: troca para tela de cadastro com telefone preenchido

@@ -1,9 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { User } from "@/types/user";
-import { findOrCreateUser, getUserByPhone } from "@/lib/supabase/users";
-import { UserFormData } from "@/types/user";
+import { User, UserFormData } from "@/types/user";
 import { useCartStore } from "@/store/cartStore";
 
 interface AuthContextType {
@@ -33,7 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const savedPhone = localStorage.getItem("quiner_user_phone");
         if (savedPhone) {
-          const userData = await getUserByPhone(savedPhone);
+          const res = await fetch(`/api/users?phone=${encodeURIComponent(savedPhone)}`);
+          const userData: User | null = res.ok ? await res.json() : null;
           if (userData) {
             setUser(userData);
           } else {
@@ -53,7 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (phone: string) => {
     try {
       setIsLoading(true);
-      const userData = await getUserByPhone(phone);
+      const res = await fetch(`/api/users?phone=${encodeURIComponent(phone)}`);
+      const userData: User | null = res.ok ? await res.json() : null;
       if (userData) {
         setUser(userData);
         if (typeof window !== "undefined") {
@@ -73,7 +73,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: UserFormData) => {
     try {
       setIsLoading(true);
-      const userData = await findOrCreateUser(data);
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Erro ao registrar usuário');
+      const userData: User = await res.json();
       setUser(userData);
       if (typeof window !== "undefined") {
         localStorage.setItem("quiner_user_phone", data.phone);

@@ -30,8 +30,6 @@ import { cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
-import { updateSetting } from "@/lib/supabase/settings";
-import { getAllOrders } from "@/lib/supabase/orders";
 import { StoreHoursModal } from "./StoreHoursModal";
 import { StoreHours } from "@/types/settings";
 
@@ -131,7 +129,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const handleToggleStore = async () => {
     setIsTogglingStore(true);
     try {
-      await updateSetting("store_online", !isStoreOnline);
+      await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'store_online', value: !isStoreOnline }),
+      });
       await refreshSettings();
     } finally {
       setIsTogglingStore(false);
@@ -216,7 +218,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   // Busca contagem de pedidos novos
   const fetchPendingOrders = async () => {
     try {
-      const orders = await getAllOrders();
+      const res = await fetch('/api/admin/orders');
+      const orders = res.ok ? await res.json() : [];
       const newOrders = orders.filter(order => order.status === "novo");
       setPendingOrders(newOrders.length);
     } catch (error) {
@@ -268,10 +271,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       const online = isStoreOnlineRef.current;
 
       if (currentTimeBrasilia === daySchedule.open && !online) {
-        await updateSetting("store_online", true);
+        await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'store_online', value: true }) });
         await refreshSettings();
       } else if (currentTimeBrasilia === daySchedule.close && online) {
-        await updateSetting("store_online", false);
+        await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'store_online', value: false }) });
         await refreshSettings();
       }
     };

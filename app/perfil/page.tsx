@@ -38,7 +38,6 @@ import { LoginModal } from "@/components/auth/LoginModal";
 import { Address, AddressFormData } from "@/types/address";
 import { UserCoupon } from "@/types/coupon";
 import { Product } from "@/types/product";
-import { getUserAddresses, deleteAddress, setDefaultAddress, createAddress, updateAddress } from "@/lib/supabase/addresses";
 import { AddressForm } from "@/components/checkout/AddressForm";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
@@ -349,7 +348,11 @@ function AddressesSection({
     if (!confirm("Tem certeza que deseja excluir este endereço?")) return;
 
     try {
-      await deleteAddress(addressId, userId);
+      await fetch('/api/addresses', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ addressId, userId }),
+      });
       showToast("Endereço excluído com sucesso", "success");
       onAddressChange();
     } catch {
@@ -359,7 +362,11 @@ function AddressesSection({
 
   const handleSetDefault = async (addressId: string) => {
     try {
-      await setDefaultAddress(addressId, userId);
+      await fetch('/api/addresses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setDefault', addressId, userId }),
+      });
       showToast("Endereço padrão atualizado", "success");
       onAddressChange();
     } catch {
@@ -371,10 +378,18 @@ function AddressesSection({
     setIsSaving(true);
     try {
       if (editingAddress) {
-        await updateAddress(editingAddress.id, userId, data);
+        await fetch('/api/addresses', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ addressId: editingAddress.id, userId, ...data }),
+        });
         showToast("Endereço atualizado com sucesso", "success");
       } else {
-        await createAddress(userId, data);
+        await fetch('/api/addresses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, ...data }),
+        });
         showToast("Endereço cadastrado com sucesso", "success");
       }
       setIsAdding(false);
@@ -782,7 +797,8 @@ export default function PerfilPage() {
 
       try {
         setIsAddressesLoading(true);
-        const userAddresses = await getUserAddresses(user.id);
+        const res = await fetch(`/api/addresses?userId=${encodeURIComponent(user.id)}`);
+        const userAddresses: Address[] = res.ok ? await res.json() : [];
         setAddresses(userAddresses);
       } catch (error) {
         console.error("Erro ao carregar endereços:", error);

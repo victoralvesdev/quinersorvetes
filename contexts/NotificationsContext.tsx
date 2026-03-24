@@ -1,8 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { getLowStockProducts } from "@/lib/supabase/products";
-import { getLowStockVariationItems, LowStockVariationItem } from "@/lib/supabase/variations";
+import type { LowStockVariationItem } from "@/lib/supabase/variations";
 import { Product } from "@/types/product";
 
 interface NotificationsContextValue {
@@ -25,10 +24,9 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 
   const refreshNotifications = useCallback(async () => {
     try {
-      const [products, variationItems] = await Promise.all([
-        getLowStockProducts(),
-        getLowStockVariationItems(),
-      ]);
+      const res = await fetch('/api/notifications/low-stock');
+      const json = res.ok ? await res.json() : { products: [], variationItems: [] };
+      const [products, variationItems]: [Product[], LowStockVariationItem[]] = [json.products, json.variationItems];
       setLowStockProducts(products);
       setLowStockVariationItems(variationItems);
     } catch (error) {

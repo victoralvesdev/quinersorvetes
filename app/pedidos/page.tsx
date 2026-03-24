@@ -21,7 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCartContext } from "@/contexts/CartContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { LoginModal } from "@/components/auth/LoginModal";
-import { getUserOrders, Order } from "@/lib/supabase/orders";
+import type { Order } from "@/lib/supabase/orders";
 import { useToast } from "@/components/ui/Toast";
 
 const statusConfig = {
@@ -406,7 +406,8 @@ export default function PedidosPage() {
 
       try {
         setIsLoading(true);
-        const userOrders = await getUserOrders(user.id);
+        const res = await fetch(`/api/orders?userId=${encodeURIComponent(user.id)}`);
+        const userOrders: Order[] = res.ok ? await res.json() : [];
         setOrders(userOrders);
       } catch (error) {
         console.error("Erro ao carregar pedidos:", error);

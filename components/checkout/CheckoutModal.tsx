@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Address, AddressFormData } from "@/types/address";
 import { PaymentMethod } from "@/types/checkout";
-import { getUserAddresses, createAddress } from "@/lib/supabase/addresses";
 import { AddressForm } from "./AddressForm";
 import { AddressSelector } from "./AddressSelector";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
@@ -96,7 +95,8 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
 
     try {
       setIsLoading(true);
-      const userAddresses = await getUserAddresses(user.id);
+      const res = await fetch(`/api/addresses?userId=${encodeURIComponent(user.id)}`);
+      const userAddresses: Address[] = res.ok ? await res.json() : [];
       setAddresses(userAddresses);
 
       const defaultAddress = userAddresses.find((addr) => addr.is_default);
@@ -181,7 +181,13 @@ export function CheckoutModal({ isOpen, onClose, onComplete, finalAmount }: Chec
 
     try {
       setIsLoading(true);
-      const createdAddress = await createAddress(user.id, data);
+      const addrRes = await fetch('/api/addresses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, ...data }),
+      });
+      if (!addrRes.ok) throw new Error('Erro ao salvar endereço');
+      const createdAddress: Address = await addrRes.json();
       setAddresses((prev) => [createdAddress, ...prev]);
       setSelectedAddressId(createdAddress.id);
       setNewAddress(undefined);

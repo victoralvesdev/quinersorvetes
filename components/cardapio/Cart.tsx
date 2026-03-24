@@ -9,14 +9,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useCoupons } from "@/contexts/CouponContext";
-import { calculateDiscount } from "@/lib/supabase/coupons";
+import { calculateDiscount } from "@/lib/utils/coupon-utils";
 import { CheckoutModal } from "@/components/checkout/CheckoutModal";
 import { CheckoutData } from "@/types/checkout";
 import { useToast } from "@/components/ui/Toast";
 import { usePoints } from "@/contexts/PointsContext";
-import { createOrder } from "@/lib/supabase/orders";
-import { decrementProductStock } from "@/lib/supabase/products";
-import { decrementVariationItemStock } from "@/lib/supabase/variations";
 import { useRouter } from "next/navigation";
 
 interface CartProps {
@@ -308,19 +305,25 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
       const totalFinal = Math.max(0, subtotal - couponDiscount - pointsProductDiscount);
 
       const freightFee = checkoutData.freightFee || 0;
-      const newOrder = await createOrder({
-        user_id: user.id,
-        items: orderItems,
-        total: totalFinal + freightFee,
-        status: "novo",
-        payment_method: checkoutData.paymentMethod,
-        address_id: checkoutData.addressId,
-        address_data: checkoutData.address,
-        is_paid: checkoutData.isPaid || false,
-        coupon_code: selectedCoupon?.coupon.code || undefined,
-        discount_amount: couponDiscount > 0 ? couponDiscount : undefined,
-        freight_fee: freightFee,
+      const orderRes = await fetch('/api/orders/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user.id,
+          items: orderItems,
+          total: totalFinal + freightFee,
+          status: "novo",
+          payment_method: checkoutData.paymentMethod,
+          address_id: checkoutData.addressId,
+          address_data: checkoutData.address,
+          is_paid: checkoutData.isPaid || false,
+          coupon_code: selectedCoupon?.coupon.code || undefined,
+          discount_amount: couponDiscount > 0 ? couponDiscount : undefined,
+          freight_fee: freightFee,
+        }),
       });
+      if (!orderRes.ok) throw new Error('Erro ao criar pedido');
+      const newOrder = await orderRes.json();
 
       // Decrementa estoque de produtos e variações em background
       (async () => {
@@ -336,7 +339,12 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
 
         for (const item of items) {
           // Decrementa estoque do produto base
-          const productResult = await decrementProductStock(item.product.id, item.quantity);
+          const stockRes = await fetch('/api/stock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'product', id: item.product.id, quantity: item.quantity }),
+          });
+          const productResult = stockRes.ok ? await stockRes.json() : null;
           if (productResult && productResult.threshold !== null && productResult.newStock <= productResult.threshold) {
             await sendStockAlert(item.product.name, undefined, productResult.newStock, productResult.threshold);
           }
@@ -349,7 +357,12 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
               const variationItem = variation.items.find((vi) => vi.id === selectedItemId);
               if (!variationItem?.id) continue;
 
-              const varResult = await decrementVariationItemStock(variationItem.id, item.quantity);
+              const varRes = await fetch('/api/stock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'variation', id: variationItem.id, quantity: item.quantity }),
+              });
+              const varResult = varRes.ok ? await varRes.json() : null;
               if (varResult && varResult.threshold !== null && varResult.newStock <= varResult.threshold) {
                 await sendStockAlert(item.product.name, variationItem.name, varResult.newStock, varResult.threshold);
               }
