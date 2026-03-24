@@ -374,19 +374,6 @@ export default function PedidosAdminPage() {
               border-top: 1px solid #eee;
               padding-top: 15px;
             }
-            .status-badge {
-              display: inline-block;
-              padding: 5px 10px;
-              border-radius: 5px;
-              font-size: 12px;
-              font-weight: bold;
-              margin-top: 5px;
-            }
-            .status-novo { background: #fef3c7; color: #92400e; }
-            .status-preparando { background: #dbeafe; color: #1e40af; }
-            .status-saiu_entrega { background: #d1fae5; color: #065f46; }
-            .status-entregue { background: #f3f4f6; color: #374151; }
-            .status-cancelado { background: #fee2e2; color: #991b1b; }
           </style>
         </head>
         <body>
@@ -404,12 +391,6 @@ export default function PedidosAdminPage() {
             <div class="info-row">
               <span class="info-label">Data:</span>
               <span class="info-value">${formatDateForPrint(order.created_at)}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Status:</span>
-              <span class="info-value">
-                <span class="status-badge status-${order.status}">${statusConfig[order.status].fullLabel}</span>
-              </span>
             </div>
           </div>
 
@@ -439,13 +420,22 @@ export default function PedidosAdminPage() {
 
           <div class="items">
             <h3>Itens do Pedido</h3>
-            ${order.items.map((item) => `
+            ${order.items.map((item) => {
+              const variations = item.selected_variations && typeof item.selected_variations === 'object'
+                ? Object.entries(item.selected_variations as Record<string, string>)
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(' | ')
+                : '';
+              return `
               <div class="item">
-                <span class="item-name">${item.product_name}</span>
+                <span class="item-name">
+                  ${item.product_name}
+                  ${variations ? `<br><small style="color:#888;font-size:11px">${variations}</small>` : ''}
+                </span>
                 <span class="item-qty">${item.quantity}x</span>
                 <span class="item-price">${formatCurrency(item.price * item.quantity)}</span>
-              </div>
-            `).join('')}
+              </div>`;
+            }).join('')}
           </div>
 
           <div class="total">
