@@ -2,12 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { PointsTransaction, ProductPointsReward } from "@/types/points";
-import {
-  getPointsBalance,
-  getPointsHistory,
-  redeemPoints as redeemPointsLib,
-  getProductPointsRewards,
-} from "@/lib/supabase/points";
 import { useAuth } from "./AuthContext";
 import { useSettings } from "./SettingsContext";
 
@@ -49,12 +43,10 @@ export function PointsProvider({ children }: { children: ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const [bal, hist] = await Promise.all([
-        getPointsBalance(user.phone),
-        getPointsHistory(user.phone),
-      ]);
-      setBalance(bal);
-      setHistory(hist);
+      const res = await fetch(`/api/points?phone=${encodeURIComponent(user.phone)}`);
+      const data = await res.json();
+      setBalance(data.balance ?? 0);
+      setHistory(data.history ?? []);
     } catch (err) {
       console.error("Erro ao carregar pontos:", err);
     } finally {
@@ -64,8 +56,9 @@ export function PointsProvider({ children }: { children: ReactNode }) {
 
   const loadRewards = useCallback(async () => {
     try {
-      const rewards = await getProductPointsRewards();
-      setProductRewards(rewards);
+      const res = await fetch('/api/points/rewards');
+      const data = await res.json();
+      setProductRewards(data.rewards ?? []);
     } catch (err) {
       console.error("Erro ao carregar resgates:", err);
     }
@@ -85,13 +78,14 @@ export function PointsProvider({ children }: { children: ReactNode }) {
     pointsRequired: number
   ): Promise<boolean> => {
     if (!user?.phone) return false;
-    const success = await redeemPointsLib(
-      user.phone,
-      pointsRequired,
-      `Resgate: ${productName} grátis`
-    );
-    if (success) await loadPoints();
-    return success;
+    const res = await fetch('/api/points/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userPhone: user.phone, cost: pointsRequired, description: `Resgate: ${productName} grátis` }),
+    });
+    const data = await res.json();
+    if (data.success) await loadPoints();
+    return data.success ?? false;
   }, [user, loadPoints]);
 
   const refreshPoints = useCallback(async () => {

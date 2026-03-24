@@ -1,23 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase/client";
+import { supabaseAdmin } from "@/lib/supabase/server";
 import { sendTextMessage } from "@/lib/evolution-api";
 
-// Gera um código de 6 dígitos
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Formata o telefone para o padrão internacional
 function formatPhoneNumber(phone: string): string {
-  // Remove todos os caracteres não numéricos
   const cleaned = phone.replace(/\D/g, "");
-
-  // Se não começar com 55, adiciona
   if (!cleaned.startsWith("55")) {
     return `55${cleaned}`;
   }
-
   return cleaned;
+}
+
+// Validação básica de telefone brasileiro
+function isValidBrazilianPhone(phone: string): boolean {
+  const cleaned = phone.replace(/\D/g, "");
+  // Com DDI 55: 12-13 dígitos | Sem DDI: 10-11 dígitos
+  const withoutCountryCode = cleaned.startsWith("55") ? cleaned.slice(2) : cleaned;
+  return withoutCountryCode.length >= 10 && withoutCountryCode.length <= 11;
+}
+
+// Rate limiting simples em memória: máx 3 tentativas por telefone a cada 10 min
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(phone: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(phone);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(phone, { count: 1, resetAt: now + 10 * 60 * 1000 });
+    return true;
+  }
+
+  if (entry.count >= 3) return false;
+
+  entry.count += 1;
+  return true;
 }
 
 export async function POST(request: NextRequest) {
@@ -32,21 +52,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const formattedPhone = formatPhoneNumber(phone);
-    const code = generateCode();
+    // M4: Validação de formato
+    if (!isValidBrazilianPhone(phone)) {
+      return NextResponse.json(
+        { error: "Telefone inválido. Use um número brasileiro válido." },
+        { status: 400 }
+      );
+    }
 
-    // Código expira em 10 minutos
+    const formattedPhone = formatPhoneNumber(phone);
+
+    // M3: Rate limiting
+    if (!checkRateLimit(formattedPhone)) {
+      return NextResponse.json(
+        { error: "Muitas tentativas. Aguarde alguns minutos." },
+        { status: 429 }
+      );
+    }
+
+    const code = generateCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     // Invalida códigos anteriores não utilizados do mesmo telefone
-    await supabase
+    await supabaseAdmin
       .from("verification_codes")
       .update({ used: true })
       .eq("phone", formattedPhone)
       .eq("used", false);
 
     // Salva o novo código no banco
-    const { error: insertError } = await supabase
+    const { error: insertError } = await supabaseAdmin
       .from("verification_codes")
       .insert({
         phone: formattedPhone,
@@ -63,7 +98,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Envia o código via WhatsApp
     const message = `🍦 *Quiner Sorvetes*
 
 Seu código de verificação é:
@@ -78,16 +112,13 @@ _Se você não solicitou este código, ignore esta mensagem._`;
 
     try {
       await sendTextMessage(formattedPhone, message);
-      console.log(`[SendCode] Código enviado para ${formattedPhone}`);
     } catch (whatsappError) {
       console.error("[SendCode] Erro ao enviar WhatsApp:", whatsappError);
-      // Não retorna erro - código foi salvo, usuário pode tentar reenviar
     }
 
     return NextResponse.json({
       success: true,
       message: "Código enviado com sucesso",
-      // Não retornamos o código por segurança
     });
   } catch (error) {
     console.error("[SendCode] Erro:", error);

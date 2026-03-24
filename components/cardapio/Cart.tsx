@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useCoupons } from "@/contexts/CouponContext";
-import { calculateDiscount, markUserCouponAsUsed, incrementCouponUsage } from "@/lib/supabase/coupons";
+import { calculateDiscount } from "@/lib/supabase/coupons";
 import { CheckoutModal } from "@/components/checkout/CheckoutModal";
 import { CheckoutData } from "@/types/checkout";
 import { useToast } from "@/components/ui/Toast";
@@ -361,11 +361,11 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
       // Marcar cupom como usado após pedido criado com sucesso
       if (selectedCoupon) {
         try {
-          // Cupons globais (id começa com "global_") não têm registro em user_coupons
-          if (!selectedCoupon.id.startsWith('global_')) {
-            await markUserCouponAsUsed(selectedCoupon.id);
-          }
-          await incrementCouponUsage(selectedCoupon.coupon.id);
+          await fetch('/api/coupons/use', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userCouponId: selectedCoupon.id, couponId: selectedCoupon.coupon.id }),
+          });
           selectCoupon(null);
         } catch (couponError) {
           console.error("[Cart] Erro ao marcar cupom como usado:", couponError);

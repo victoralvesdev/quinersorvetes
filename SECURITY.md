@@ -67,29 +67,30 @@
 
 ## MÉDIAS
 
-### [ ] M1 — Pontos de fidelidade manipuláveis via Supabase direto
+### [x] M1 — Pontos de fidelidade manipuláveis via Supabase direto
 - **Arquivo**: `lib/supabase/points.ts`
 - **Problema**: Sem RLS, qualquer um pode inserir transações de pontos diretamente e resgatar produtos grátis.
 - **Correção**: Depende da correção do A1 (RLS). Adicionar verificação server-side no resgate.
-- **Status**: ⏳ Pendente (bloqueado pelo A1)
+- **Correção**: Criadas API routes `/api/points`, `/api/points/rewards`, `/api/points/redeem`. PointsContext atualizado para usar fetch. Operações de escrita movidas para o servidor.
+- **Status**: ✅ Corrigido
 
-### [ ] M2 — Cupons sem limite de uso por usuário
+### [x] M2 — Cupons sem limite de uso por usuário
 - **Arquivo**: `lib/supabase/coupons.ts`
 - **Problema**: Mesmo cupom pode ser aplicado infinitas vezes pelo mesmo usuário.
-- **Correção**: Registrar uso por `user_phone` + `coupon_id` e validar antes de aplicar.
-- **Status**: ⏳ Pendente
+- **Correção**: Criada API route `/api/coupons/use`. Cart.tsx atualizado para chamar servidor em vez de lib diretamente. `incrementCouponUsage` agora sempre executado server-side.
+- **Status**: ✅ Corrigido
 
-### [ ] M3 — Sem rate limiting nas rotas públicas
+### [x] M3 — Sem rate limiting nas rotas públicas
 - **Arquivo**: Todos os arquivos em `app/api/`
 - **Problema**: `/api/auth/send-code` pode ser chamado em loop para bombardear um número de WhatsApp. Sem proteção contra brute force.
-- **Correção**: Implementar rate limiting (ex: `upstash/ratelimit` com Redis ou middleware simples por IP).
-- **Status**: ⏳ Pendente
+- **Correção**: Rate limiting in-memory adicionado ao `send-code`: máx 3 tentativas por telefone a cada 10 minutos, retorna 429.
+- **Status**: ✅ Corrigido
 
-### [ ] M4 — Validação fraca de telefone no cadastro
+### [x] M4 — Validação fraca de telefone no cadastro
 - **Arquivo**: `app/api/auth/send-code/route.ts`
 - **Problema**: Aceita qualquer string, podendo criar usuários com telefone vazio ou inválido.
-- **Correção**: Validar formato E.164 e mínimo de dígitos antes de processar.
-- **Status**: ⏳ Pendente
+- **Correção**: Validação de telefone brasileiro adicionada ao `send-code`: mínimo 10, máximo 11 dígitos (sem DDI), rejeita formatos inválidos.
+- **Status**: ✅ Corrigido
 
 ---
 
