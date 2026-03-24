@@ -72,7 +72,7 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const res = await fetch('/api/settings/public');
+      const res = await fetch('/api/settings/public', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch settings');
       const fetchedSettings: PublicSettings = await res.json();
       setSettings(fetchedSettings);
