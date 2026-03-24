@@ -18,10 +18,19 @@
 - **Correção**: Tornar verificação de assinatura obrigatória — rejeitar se secret não estiver configurado.
 - **Status**: ✅ Corrigido
 
-### [ ] C3 — Tokens de produção no `.env.local` (Supabase, MP, WhatsApp, Google Maps)
-- **Problema**: Se o arquivo vazar (via git, deploy, etc.), toda a infraestrutura fica exposta.
-- **Correção**: Rotacionar todos os tokens. Adicionar `.env.local` ao `.gitignore` (verificar). Usar secrets do ambiente de deploy (Vercel env vars).
-- **Status**: ⏳ Pendente
+### [x] C3 — Tokens de produção no `.env.local` (Supabase, MP, WhatsApp, Google Maps)
+- **Problema**: O `.env.example` continha URLs e chaves reais expostas no repositório. `.env.local` nunca foi commitado (gitignore correto), mas o exemplo era perigoso.
+- **Correção**: `.env.example` reescrito com placeholders. Variáveis faltantes documentadas. Tokens devem ser rotacionados.
+- **Status**: ✅ Corrigido (arquivo)
+
+  **⚠️ Ação manual necessária — rotacionar os seguintes tokens:**
+  | Token | Onde rotacionar |
+  |---|---|
+  | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API |
+  | `MERCADOPAGO_ACCESS_TOKEN` | MP → Seu negócio → Credenciais |
+  | `MERCADOPAGO_PUBLIC_KEY` | MP → Seu negócio → Credenciais |
+  | `EVOLUTION_API_KEY` | Painel EasyPanel → Evolution API |
+  | `GOOGLE_MAPS_API_KEY` | Google Cloud Console → APIs & Services → Credentials |
 
 ---
 
