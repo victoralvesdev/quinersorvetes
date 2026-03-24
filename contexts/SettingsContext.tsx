@@ -45,11 +45,13 @@ function getCachedSettings(): PublicSettings {
   return DEFAULT_PUBLIC_SETTINGS;
 }
 
-// Save settings to localStorage
+// Save settings to localStorage (exclude real-time fields)
 function cacheSettings(settings: PublicSettings): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { store_online, store_hours, ...cacheable } = settings;
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(cacheable));
   } catch (err) {
     console.error("Failed to cache settings:", err);
   }
@@ -90,11 +92,12 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     await loadSettings();
   }, [loadSettings]);
 
-  // Load from server after hydration
+  // Load from server after hydration, then poll every 30s so store_online stays current
   useEffect(() => {
-    if (isHydrated) {
-      loadSettings();
-    }
+    if (!isHydrated) return;
+    loadSettings();
+    const interval = setInterval(loadSettings, 30000);
+    return () => clearInterval(interval);
   }, [isHydrated, loadSettings]);
 
   // Update favicon dynamically when settings change
