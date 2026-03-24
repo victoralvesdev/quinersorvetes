@@ -11,7 +11,12 @@ if (!supabaseUrl || !serviceRoleKey) {
  * Cliente Supabase com service role key — usar APENAS em API routes (servidor).
  * NUNCA importar em componentes cliente.
  */
+// Use fetch with no-store so Next.js data cache never serves stale Supabase responses
+const fetchNoStore: typeof fetch = (input, init) =>
+  fetch(input, { ...init, cache: 'no-store' });
+
 export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
   db: { schema: 'public' },
   auth: { persistSession: false },
+  global: { fetch: fetchNoStore },
 });

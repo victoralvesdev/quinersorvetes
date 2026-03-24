@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_noStore as noStore } from 'next/cache';
 import { getAllSettings, updateSetting, upsertSetting } from '@/lib/supabase/settings';
 
 export async function GET() {
+  noStore();
   try {
     const settings = await getAllSettings();
     return NextResponse.json(settings);
