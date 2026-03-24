@@ -107,7 +107,7 @@ export default function ClientesPage() {
         fetch("/api/admin/users"),
         fetch("/api/admin/orders"),
       ]);
-      const [users, orders] = await Promise.all([
+      const [users, orders]: [UserType[], Order[]] = await Promise.all([
         usersRes.json(),
         ordersRes.json(),
       ]);
