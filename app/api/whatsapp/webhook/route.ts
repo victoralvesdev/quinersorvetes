@@ -73,7 +73,6 @@ export async function POST(request: NextRequest) {
         const diffMinutes = (now.getTime() - lastUpdate.getTime()) / (1000 * 60);
 
         if (diffMinutes > CONVERSATION_TIMEOUT_MINUTES) {
-          console.log('[Webhook] Conversa expirada por timeout:', phoneNumber);
           await deleteConversationState(phoneNumber);
           await sendTextMessage(
             phoneNumber,
@@ -86,7 +85,6 @@ export async function POST(request: NextRequest) {
       // Detecta comando de cancelar (cancela qualquer ação em andamento)
       const cancelarAcaoRegex = /^cancelar$/i;
       if (cancelarAcaoRegex.test(messageText.trim()) && conversationState) {
-        console.log('[Webhook] Cancelando ação em andamento para:', phoneNumber);
         await deleteConversationState(phoneNumber);
         await sendTextMessage(
           phoneNumber,
@@ -165,7 +163,6 @@ export async function POST(request: NextRequest) {
         const selectedRowId = listResponse.singleSelectReply?.selectedRowId || listResponse.selectedRowId || '';
         const selectedTitle = listResponse.title || '';
 
-        console.log('[Webhook] Lista selecionada:', { selectedRowId, selectedTitle });
 
         // Verifica se é opção de confirmar pedido
         const confirmarListMatch = selectedRowId.match(/confirmar_([a-f0-9]{8})/i);
@@ -228,7 +225,6 @@ export async function POST(request: NextRequest) {
  */
 async function handleCadastrarProduto(phoneNumber: string) {
   try {
-    console.log('[handleCadastrarProduto] Iniciando para:', phoneNumber);
 
     // Busca as categorias do banco de dados
     const categories = await getCategories();
@@ -627,7 +623,6 @@ async function handleProductImageUpload(
       return;
     }
 
-    console.log('[handleProductImageUpload] Base64 obtido, tamanho:', base64Data.length);
 
     // Faz upload para o Supabase Storage
     const imageUrl = await uploadImageFromBase64(base64Data);
@@ -640,7 +635,6 @@ async function handleProductImageUpload(
       return;
     }
 
-    console.log('[handleProductImageUpload] Imagem salva:', imageUrl);
 
     // Finaliza o cadastro com a URL da imagem
     await finalizeProductRegistration(phoneNumber, state, imageUrl);
@@ -733,7 +727,6 @@ Para cadastrar outro produto, envie *cadastrar produto* novamente.`;
  */
 async function handleConfirmarPedido(adminPhone: string, orderCode: string) {
   try {
-    console.log('[handleConfirmarPedido] Confirmando pedido:', orderCode);
 
     // Busca o pedido pelo código curto
     const orderData = await getOrderWithUser(orderCode);
@@ -807,7 +800,6 @@ async function processOrderConfirmation(adminPhone: string, order: any, customer
     );
   }
 
-  console.log('[processOrderConfirmation] Pedido confirmado:', orderCode);
 }
 
 /**
@@ -815,7 +807,6 @@ async function processOrderConfirmation(adminPhone: string, order: any, customer
  */
 async function handleCancelarPedido(adminPhone: string, orderCode: string) {
   try {
-    console.log('[handleCancelarPedido] Cancelando pedido:', orderCode);
 
     // Busca o pedido pelo código curto
     const order = await getOrderByShortCode(orderCode);
@@ -873,7 +864,6 @@ async function handleCancelarPedido(adminPhone: string, orderCode: string) {
       );
     }
 
-    console.log('[handleCancelarPedido] Pedido cancelado:', orderCode);
   } catch (error) {
     console.error('[handleCancelarPedido] Erro:', error);
     await sendTextMessage(
@@ -888,7 +878,6 @@ async function handleCancelarPedido(adminPhone: string, orderCode: string) {
  */
 async function handleSaiuEntrega(adminPhone: string, orderCode: string) {
   try {
-    console.log('[handleSaiuEntrega] Marcando como saiu para entrega:', orderCode);
 
     // Busca o pedido pelo código curto
     const order = await getOrderByShortCode(orderCode);
@@ -961,7 +950,6 @@ Agradecemos a preferência! 🍦💜`;
       await sendTextMessage(formattedPhone, mensagemCliente);
     }
 
-    console.log('[handleSaiuEntrega] Pedido marcado como saiu para entrega:', orderCode);
   } catch (error) {
     console.error('[handleSaiuEntrega] Erro:', error);
     await sendTextMessage(
@@ -977,7 +965,6 @@ Agradecemos a preferência! 🍦💜`;
  */
 async function handleEditarProduto(phoneNumber: string) {
   try {
-    console.log('[handleEditarProduto] Iniciando para:', phoneNumber);
 
     // Busca as categorias do banco de dados
     const categories = await getCategories();

@@ -96,20 +96,20 @@
 
 ## BAIXAS
 
-### [ ] B1 — Transições de status de pedido sem validação de fluxo
+### [x] B1 — Transições de status de pedido sem validação de fluxo
 - **Arquivo**: `app/api/orders/update-status/route.ts`
 - **Problema**: Permite ir de "novo" direto para "entregue", pulando etapas e concedendo pontos indevidamente.
-- **Correção**: Implementar máquina de estados com transições válidas.
-- **Status**: ⏳ Pendente
+- **Correção**: Máquina de estados implementada. Transições válidas: `novo→preparando|cancelado`, `preparando→saiu_entrega|cancelado`, `saiu_entrega→entregue|cancelado`. Retorna 400 para qualquer outra.
+- **Status**: ✅ Corrigido
 
-### [ ] B2 — Logs expondo dados sensíveis em produção
+### [x] B2 — Logs expondo dados sensíveis em produção
 - **Arquivo**: Múltiplos arquivos em `app/api/`
 - **Problema**: `console.log` expõe IDs de pedidos, status de pagamento e dados de transação nos logs do servidor.
-- **Correção**: Remover ou substituir por logger estruturado que filtra dados sensíveis em produção.
-- **Status**: ⏳ Pendente
+- **Correção**: Removidos logs que expunham telefones, order IDs, detalhes de pagamento e body completo de webhooks.
+- **Status**: ✅ Corrigido
 
-### [ ] B3 — Rota preview-access desnecessária em produção
+### [x] B3 — Rota preview-access desnecessária em produção
 - **Arquivo**: `app/api/auth/preview-access/route.ts`
 - **Problema**: Rota criada para acesso antecipado ainda está ativa, com telefone hardcoded.
-- **Correção**: Remover a rota ou proteger adequadamente.
-- **Status**: ⏳ Pendente
+- **Correção**: Rota removida. Cookie `quiner_preview` e lógica associada removidos do middleware.
+- **Status**: ✅ Corrigido

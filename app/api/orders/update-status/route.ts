@@ -29,11 +29,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar status
-    const validStatuses = ['novo', 'preparando', 'saiu_entrega', 'entregue', 'cancelado'];
-    if (!validStatuses.includes(status)) {
+    // Validar status e transições permitidas
+    const validTransitions: Record<string, string[]> = {
+      novo:         ['preparando', 'cancelado'],
+      preparando:   ['saiu_entrega', 'cancelado'],
+      saiu_entrega: ['entregue', 'cancelado'],
+      entregue:     [],
+      cancelado:    [],
+    };
+
+    if (!(status in validTransitions) && !Object.keys(validTransitions).includes(status)) {
+      return NextResponse.json({ success: false, error: 'Status inválido' }, { status: 400 });
+    }
+
+    // Busca o status atual do pedido para validar a transição
+    const { data: currentOrder } = await (await import('@/lib/supabase/server')).supabaseAdmin
+      .from('orders')
+      .select('status')
+      .eq('id', orderId)
+      .single();
+
+    if (!currentOrder) {
+      return NextResponse.json({ success: false, error: 'Pedido não encontrado' }, { status: 404 });
+    }
+
+    const allowedNext = validTransitions[currentOrder.status] ?? [];
+    if (!allowedNext.includes(status)) {
       return NextResponse.json(
-        { success: false, error: 'Status inválido' },
+        { success: false, error: `Transição inválida: ${currentOrder.status} → ${status}` },
         { status: 400 }
       );
     }
@@ -105,7 +128,6 @@ Obrigado por pedir na Quiner! 💜`;
 
         try {
           await sendTextMessage(formattedPhone, message);
-          console.log('[update-status] Notificação de aceite enviada');
         } catch (error) {
           console.error('[update-status] Erro ao enviar notificação de aceite:', error);
         }
@@ -132,7 +154,6 @@ Se você tiver dúvidas, entre em contato conosco.`;
 
         try {
           await sendTextMessage(formattedPhone, message);
-          console.log('[update-status] Notificação de cancelamento enviada');
         } catch (error) {
           console.error('[update-status] Erro ao enviar notificação de cancelamento:', error);
         }
@@ -159,7 +180,6 @@ Esperamos que você aproveite seu pedido. Até a próxima! 💜`;
 
         try {
           await sendTextMessage(formattedPhone, message);
-          console.log('[update-status] Notificação de entrega enviada');
         } catch (error) {
           console.error('[update-status] Erro ao enviar notificação de entrega:', error);
         }
@@ -175,7 +195,6 @@ Esperamos que você aproveite seu pedido. Até a próxima! 💜`;
               orderTotal,
               settings.points_ratio
             );
-            console.log('[update-status] Pontos concedidos para:', orderData.userPhone);
           }
         } catch (error) {
           console.error('[update-status] Erro ao conceder pontos:', error);

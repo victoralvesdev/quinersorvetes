@@ -17,11 +17,8 @@ export function middleware(request: NextRequest) {
     (d) => hostname === d || hostname.startsWith(`${d}:`)
   );
 
-  const hasPreviewAccess =
-    request.cookies.get("quiner_preview")?.value === "1";
-
-  // Localhost, domínios beta/preview e usuário autorizado: acesso total
-  if (isLocalhost || isDominioLiberado || hasPreviewAccess) {
+  // Localhost e domínios beta/preview: acesso total
+  if (isLocalhost || isDominioLiberado) {
     return NextResponse.next();
   }
 
