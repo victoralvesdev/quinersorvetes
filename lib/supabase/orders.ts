@@ -1,4 +1,4 @@
-import { supabase } from "./client";
+import { supabaseAdmin as supabase } from "./server";
 import { CartItem } from "@/types/product";
 import { PaymentMethod } from "@/types/checkout";
 import { Address } from "@/types/address";

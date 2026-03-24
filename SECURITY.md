@@ -36,11 +36,14 @@
 
 ## ALTAS
 
-### [ ] A1 — Sem Row Level Security (RLS) no Supabase
+### [x] A1 — Sem Row Level Security (RLS) no Supabase
 - **Arquivo**: `supabase-setup.sql`, migrations
 - **Problema**: Políticas com `USING (true)` não restringem acesso. Qualquer um com a chave anon pode ler todos os pedidos/clientes ou alterar preços.
-- **Correção**: Habilitar RLS em todas as tabelas com políticas restritivas por `user_phone` ou `user_id`.
-- **Status**: ⏳ Pendente
+- **Correção**: Criado cliente `supabaseAdmin` com service role para API routes. Todas as tabelas sensíveis bloqueadas para anon. Tabelas públicas (products, categories, etc.) mantêm leitura livre.
+- **Status**: ✅ Corrigido
+
+  **⚠️ Ação manual necessária:** Adicionar `SUPABASE_SERVICE_ROLE_KEY` no `.env.local` e na Vercel.
+  Supabase Dashboard → Project Settings → API → `service_role` (secret)
 
 ### [ ] A2 — IDOR em update-status (alterar pedido de qualquer pessoa)
 - **Arquivo**: `app/api/orders/update-status/route.ts`

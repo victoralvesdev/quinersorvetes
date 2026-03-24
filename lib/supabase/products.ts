@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { supabaseAdmin as supabase } from './server';
 import { Product } from '@/types/product';
 import { getProductVariations, saveProductVariations } from './variations';
 

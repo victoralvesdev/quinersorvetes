@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { supabaseAdmin as supabase } from './server';
 import { Coupon, UserCoupon, CouponFormData } from '@/types/coupon';
 
 /**

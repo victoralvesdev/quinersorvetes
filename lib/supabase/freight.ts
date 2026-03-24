@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { supabaseAdmin as supabase } from './server';
 
 export interface FreightZone {
   id: string;

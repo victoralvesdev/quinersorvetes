@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { supabaseAdmin as supabase } from './server';
 import { Category } from '@/types/product';
 
 /**

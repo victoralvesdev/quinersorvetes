@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { supabaseAdmin as supabase } from './server';
 import { PointsTransaction, ProductPointsReward } from '@/types/points';
 
 export async function getPointsBalance(userPhone: string): Promise<number> {
