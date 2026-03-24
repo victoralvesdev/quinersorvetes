@@ -12,11 +12,11 @@
 - **Correção**: Mover validação para API route server-side (`/api/admin/login`). Usar cookie `httpOnly` no lugar do localStorage.
 - **Status**: ✅ Corrigido
 
-### [ ] C2 — Webhook do Mercado Pago sem assinatura obrigatória
+### [x] C2 — Webhook do Mercado Pago sem assinatura obrigatória
 - **Arquivo**: `app/api/mercadopago/webhook/route.ts`
 - **Problema**: Se `MERCADOPAGO_WEBHOOK_SECRET` não estiver configurado, o webhook aceita qualquer requisição. Atacante pode forjar um pagamento aprovado e receber pedido sem pagar.
 - **Correção**: Tornar verificação de assinatura obrigatória — rejeitar se secret não estiver configurado.
-- **Status**: ⏳ Pendente
+- **Status**: ✅ Corrigido
 
 ### [ ] C3 — Tokens de produção no `.env.local` (Supabase, MP, WhatsApp, Google Maps)
 - **Problema**: Se o arquivo vazar (via git, deploy, etc.), toda a infraestrutura fica exposta.

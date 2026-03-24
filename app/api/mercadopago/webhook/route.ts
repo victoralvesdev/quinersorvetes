@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { updateOrderPaymentStatus } from '@/lib/supabase/orders';
 
 const ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN;
@@ -17,8 +17,8 @@ function verifyWebhookSignature(
   dataId: string
 ): boolean {
   if (!WEBHOOK_SECRET) {
-    console.warn('[MP Webhook] WEBHOOK_SECRET não configurado - assinatura não verificada');
-    return true; // Permite continuar se não configurado (para retrocompatibilidade)
+    console.error('[MP Webhook] MERCADOPAGO_WEBHOOK_SECRET não configurado — webhook rejeitado');
+    return false;
   }
 
   if (!xSignature || !xRequestId) {
@@ -53,14 +53,14 @@ function verifyWebhookSignature(
     hmac.update(template);
     const calculatedSignature = hmac.digest('hex');
 
-    // Compara as assinaturas
-    const isValid = calculatedSignature === v1;
+    // Compara usando timingSafeEqual para evitar timing attacks
+    const isValid = timingSafeEqual(
+      Buffer.from(calculatedSignature, 'hex'),
+      Buffer.from(v1, 'hex')
+    );
 
     if (!isValid) {
-      console.error('[MP Webhook] Assinatura inválida', {
-        expected: v1,
-        calculated: calculatedSignature,
-      });
+      console.error('[MP Webhook] Assinatura inválida');
     }
 
     return isValid;
@@ -84,20 +84,12 @@ export async function POST(request: NextRequest) {
 
     console.log('[MP Webhook] Recebido:', { type: body.type, dataId: body.data?.id });
 
-    // Verifica assinatura se o secret estiver configurado
-    if (WEBHOOK_SECRET) {
-      const dataId = body.data?.id?.toString() || '';
-      const isValidSignature = verifyWebhookSignature(xSignature, xRequestId, dataId);
+    // Verificação de assinatura sempre obrigatória
+    const dataId = body.data?.id?.toString() || '';
+    const isValidSignature = verifyWebhookSignature(xSignature, xRequestId, dataId);
 
-      if (!isValidSignature) {
-        console.error('[MP Webhook] Assinatura inválida - rejeitando webhook');
-        return NextResponse.json(
-          { error: 'Invalid signature' },
-          { status: 401 }
-        );
-      }
-
-      console.log('[MP Webhook] Assinatura verificada com sucesso');
+    if (!isValidSignature) {
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     // Mercado Pago envia diferentes tipos de notificação
