@@ -134,7 +134,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'store_online', value: !isStoreOnline }),
+        body: JSON.stringify({ key: 'store_online', value: !isStoreOnline, upsert: true, is_public: true, category: 'appearance' }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -281,10 +281,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       const online = isStoreOnlineRef.current;
 
       if (currentTimeBrasilia === daySchedule.open && !online) {
-        await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'store_online', value: true }) });
+        await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'store_online', value: true, upsert: true, is_public: true, category: 'appearance' }) });
         await refreshSettings();
       } else if (currentTimeBrasilia === daySchedule.close && online) {
-        await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'store_online', value: false }) });
+        await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'store_online', value: false, upsert: true, is_public: true, category: 'appearance' }) });
         await refreshSettings();
       }
     };
