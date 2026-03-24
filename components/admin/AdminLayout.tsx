@@ -158,25 +158,41 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       const ctx = new AudioCtx();
 
-      const playTone = (freq: number, start: number, duration: number, vol = 0.35) => {
+      const playBeep = (freq: number, start: number, duration: number) => {
+        // Oscilador principal — onda quadrada (mais agressiva que sine)
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.connect(gain);
+        // Distorção para deixar mais áspero
+        const distortion = ctx.createWaveShaper();
+        const curve = new Float32Array(256);
+        for (let i = 0; i < 256; i++) {
+          const x = (i * 2) / 256 - 1;
+          curve[i] = (Math.PI + 400) * x / (Math.PI + 400 * Math.abs(x));
+        }
+        distortion.curve = curve;
+
+        osc.connect(distortion);
+        distortion.connect(gain);
         gain.connect(ctx.destination);
-        osc.type = "sine";
+
+        osc.type = "square";
         osc.frequency.setValueAtTime(freq, start);
-        gain.gain.setValueAtTime(0, start);
-        gain.gain.linearRampToValueAtTime(vol, start + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+        // Volume máximo (1.0)
+        gain.gain.setValueAtTime(1.0, start);
+        gain.gain.setValueAtTime(1.0, start + duration - 0.01);
+        gain.gain.linearRampToValueAtTime(0, start + duration);
         osc.start(start);
-        osc.stop(start + duration);
+        osc.stop(start + duration + 0.05);
       };
 
       const t = ctx.currentTime;
-      // Três notas ascendentes — ding ding ding
-      playTone(523.25, t,        0.25); // C5
-      playTone(659.25, t + 0.18, 0.25); // E5
-      playTone(783.99, t + 0.36, 0.45); // G5
+      // 6 apitos rápidos e irritantes alternando entre duas frequências agudas
+      const beepDuration = 0.18;
+      const gap = 0.22;
+      for (let i = 0; i < 6; i++) {
+        const freq = i % 2 === 0 ? 1400 : 1000;
+        playBeep(freq, t + i * gap, beepDuration);
+      }
     } catch {
       // browser sem suporte a Web Audio — ignora silenciosamente
     }
