@@ -156,7 +156,7 @@ export default function FidelidadePage() {
     const res = await fetch("/api/admin/points", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "bulkUpsertRewards", rewards: Array.from(selectedProductIds).map((id) => ({ product_id: id, points_required: pts })) }),
+      body: JSON.stringify({ action: "bulkUpsertRewards", productIds: Array.from(selectedProductIds), pointsRequired: pts }),
     });
     const ok = res.ok;
     setIsSavingRewards(false);
@@ -179,7 +179,7 @@ export default function FidelidadePage() {
     const res = await fetch("/api/admin/points", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "bulkUpsertRewards", rewards: [{ product_id: productId, points_required: pts }] }),
+      body: JSON.stringify({ action: "bulkUpsertRewards", productIds: [productId], pointsRequired: pts }),
     });
     const ok = res.ok;
     if (ok) {

@@ -46,8 +46,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'bulkUpsertRewards') {
-      const rewards = await bulkUpsertProductPointsRewards(body.rewards);
-      return NextResponse.json(rewards);
+      const { productIds, pointsRequired } = body;
+      const ok = await bulkUpsertProductPointsRewards(productIds, pointsRequired);
+      return NextResponse.json({ ok });
     }
 
     return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
