@@ -16,12 +16,14 @@ const ADMIN_PHONES = (process.env.ADMIN_WHATSAPP_NUMBER || '')
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verifica se há um token de autorização (opcional, para segurança)
-    const authHeader = request.headers.get('authorization');
+    // Verifica token de autorização — obrigatório
     const cronSecret = process.env.CRON_SECRET;
-
-    // Se CRON_SECRET estiver configurado, verifica autorização
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret) {
+      console.error('[DeliveryReminder] CRON_SECRET não configurado');
+      return NextResponse.json({ error: 'Configuração inválida' }, { status: 500 });
+    }
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

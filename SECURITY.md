@@ -51,17 +51,17 @@
 - **Correção**: Rota protegida com verificação do cookie `quiner_admin_session` — apenas admins autenticados podem alterar status.
 - **Status**: ✅ Corrigido
 
-### [ ] A3 — Webhook WhatsApp sem autenticação
+### [x] A3 — Webhook WhatsApp sem autenticação
 - **Arquivo**: `app/api/whatsapp/webhook/route.ts`
 - **Problema**: Qualquer pessoa pode chamar o endpoint e disparar o fluxo de cadastro de produtos, inserindo itens falsos no catálogo.
-- **Correção**: Verificar header de autenticação da Evolution API em todas as requisições.
-- **Status**: ⏳ Pendente
+- **Correção**: Validação do header `apikey` obrigatória — rejeita se não corresponder ao `EVOLUTION_API_KEY`.
+- **Status**: ✅ Corrigido
 
-### [ ] A4 — Cron de lembrete sem autenticação forte
+### [x] A4 — Cron de lembrete sem autenticação forte
 - **Arquivo**: `app/api/whatsapp/delivery-reminder/route.ts`
 - **Problema**: Se `CRON_SECRET` não estiver configurado, a rota é pública. Pode ser chamada por qualquer um para enviar mensagens WhatsApp falsas.
-- **Correção**: Tornar `CRON_SECRET` obrigatório — bloquear se não configurado.
-- **Status**: ⏳ Pendente
+- **Correção**: `CRON_SECRET` agora obrigatório — retorna 500 se não configurado, 401 se token inválido.
+- **Status**: ✅ Corrigido
 
 ---
 

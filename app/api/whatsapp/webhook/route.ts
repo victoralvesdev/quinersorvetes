@@ -25,10 +25,19 @@ const CONVERSATION_TIMEOUT_MINUTES = 10;
  * Webhook para receber mensagens do WhatsApp via Evolution API
  */
 export async function POST(request: NextRequest) {
+  // Verifica que o webhook veio da Evolution API
+  const evolutionApiKey = process.env.EVOLUTION_API_KEY;
+  if (!evolutionApiKey) {
+    console.error('[WA Webhook] EVOLUTION_API_KEY não configurado');
+    return NextResponse.json({ error: 'Configuração inválida' }, { status: 500 });
+  }
+  const incomingKey = request.headers.get('apikey');
+  if (incomingKey !== evolutionApiKey) {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-
-    console.log('Webhook recebido:', JSON.stringify(body, null, 2));
 
     // Verifica se é uma mensagem
     if (body.event === 'messages.upsert') {
