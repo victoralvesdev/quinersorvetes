@@ -12,11 +12,15 @@ import { getPublicSettings } from '@/lib/supabase/settings';
  * Quando o status muda para "saiu_entrega", gera código e notifica o cliente
  */
 export async function POST(request: NextRequest) {
+  // Apenas admins autenticados podem alterar status de pedidos
+  const adminSession = request.cookies.get('quiner_admin_session')?.value;
+  if (adminSession !== '1') {
+    return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { orderId, status } = body;
-
-    console.log('[update-status] Atualizando pedido:', orderId, 'para:', status);
 
     if (!orderId || !status) {
       return NextResponse.json(

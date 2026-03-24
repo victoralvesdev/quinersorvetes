@@ -45,11 +45,11 @@
   **⚠️ Ação manual necessária:** Adicionar `SUPABASE_SERVICE_ROLE_KEY` no `.env.local` e na Vercel.
   Supabase Dashboard → Project Settings → API → `service_role` (secret)
 
-### [ ] A2 — IDOR em update-status (alterar pedido de qualquer pessoa)
+### [x] A2 — IDOR em update-status (alterar pedido de qualquer pessoa)
 - **Arquivo**: `app/api/orders/update-status/route.ts`
 - **Problema**: Não valida se o solicitante é dono do pedido. Qualquer um pode cancelar ou marcar como "entregue" pedidos alheios.
-- **Correção**: Validar autoria do pedido antes de permitir atualização. Rota deve ser protegida para uso interno/admin.
-- **Status**: ⏳ Pendente
+- **Correção**: Rota protegida com verificação do cookie `quiner_admin_session` — apenas admins autenticados podem alterar status.
+- **Status**: ✅ Corrigido
 
 ### [ ] A3 — Webhook WhatsApp sem autenticação
 - **Arquivo**: `app/api/whatsapp/webhook/route.ts`
