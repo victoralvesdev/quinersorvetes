@@ -30,12 +30,24 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Painel admin: acessível apenas no subdomínio correto
+  // Painel admin: acessível apenas no subdomínio correto + cookie de sessão válido
   if (pathname.startsWith("/gestao-admin")) {
-    if (isAdminSubdomain) {
+    if (!isAdminSubdomain) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    // Página de login não precisa de sessão
+    if (pathname === "/gestao-admin/login") {
       return NextResponse.next();
     }
-    return NextResponse.redirect(new URL("/", request.url));
+
+    // Demais páginas admin exigem cookie httpOnly válido
+    const adminSession = request.cookies.get("quiner_admin_session")?.value;
+    if (adminSession !== "1") {
+      return NextResponse.redirect(new URL("/gestao-admin/login", request.url));
+    }
+
+    return NextResponse.next();
   }
 
   return NextResponse.next();
