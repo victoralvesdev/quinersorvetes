@@ -30,6 +30,7 @@ export interface Product {
   variations?: ProductVariation[]; // Subcategorias e seus itens
   stock_quantity?: number | null;
   low_stock_threshold?: number | null;
+  display_order?: number;
   price_from?: boolean;
   promotion?: {
     discount: number;

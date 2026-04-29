@@ -16,7 +16,7 @@ export async function getProducts(): Promise<Product[]> {
         name
       )
     `)
-    .order('created_at', { ascending: false });
+    .order('display_order', { ascending: true });
 
   if (error) {
     console.error('Erro ao buscar produtos:', error);
@@ -40,14 +40,15 @@ export async function getProducts(): Promise<Product[]> {
     description: product.description,
     price: Number(product.price),
     image: product.image || '',
-    category: product.category_id, // Usa o category_id para filtragem
-    categoryName: product.categories?.name || '', // Nome da categoria para exibição
+    category: product.category_id,
+    categoryName: product.categories?.name || '',
     available: product.available,
     featured: product.featured,
     hasVariations: productsWithVariations.has(product.id),
     stock_quantity: product.stock_quantity ?? null,
     low_stock_threshold: product.low_stock_threshold ?? null,
     price_from: product.price_from ?? false,
+    display_order: product.display_order ?? 0,
   }));
 
   return products;
@@ -157,6 +158,9 @@ export async function createProduct(
     price_from?: boolean;
   }
 ): Promise<Product | null> {
+  // Empurra todos os produtos 1 posição para baixo
+  await supabase.rpc('increment_display_order_all_products');
+
   const { data, error } = await supabase
     .from('products')
     .insert([
@@ -171,6 +175,7 @@ export async function createProduct(
         stock_quantity: product.stock_quantity ?? null,
         low_stock_threshold: product.low_stock_threshold ?? null,
         price_from: product.price_from ?? false,
+        display_order: 0,
       },
     ])
     .select()
@@ -292,6 +297,20 @@ export async function duplicateProduct(id: string): Promise<Product | null> {
   }
 
   return data;
+}
+
+/**
+ * Reordena produtos atualizando display_order de cada um
+ */
+export async function reorderProducts(
+  orderedIds: string[]
+): Promise<boolean> {
+  const updates = orderedIds.map((id, index) =>
+    supabase.from('products').update({ display_order: index }).eq('id', id)
+  );
+
+  const results = await Promise.all(updates);
+  return results.every((r) => !r.error);
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {

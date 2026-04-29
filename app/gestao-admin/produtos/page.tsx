@@ -30,6 +30,7 @@ import {
   Coins,
   Archive,
   AlertTriangle,
+  GripVertical,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Product, Category, ProductVariation } from "@/types/product";
@@ -81,6 +82,9 @@ export default function ProdutosPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [dragProductId, setDragProductId] = useState<string | null>(null);
+  const [dragOverProductId, setDragOverProductId] = useState<string | null>(null);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
 
@@ -532,6 +536,74 @@ export default function ProdutosPage() {
     }
   };
 
+  // --- Drag and drop para reordenar produtos ---
+  const handleProductDragStart = (e: React.DragEvent, productId: string) => {
+    setDragProductId(productId);
+    e.dataTransfer.effectAllowed = "move";
+    // Imagem fantasma transparente — o visual é controlado pelo CSS
+    const ghost = document.createElement("div");
+    ghost.style.opacity = "0";
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 0, 0);
+    setTimeout(() => document.body.removeChild(ghost), 0);
+  };
+
+  const handleProductDragOver = (e: React.DragEvent, productId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragProductId && productId !== dragProductId) {
+      setDragOverProductId(productId);
+    }
+  };
+
+  const handleProductDragEnd = () => {
+    setDragProductId(null);
+    setDragOverProductId(null);
+  };
+
+  const handleProductDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!dragProductId || dragProductId === targetId) {
+      handleProductDragEnd();
+      return;
+    }
+
+    const oldIndex = products.findIndex((p) => p.id === dragProductId);
+    const newIndex = products.findIndex((p) => p.id === targetId);
+    if (oldIndex === -1 || newIndex === -1) {
+      handleProductDragEnd();
+      return;
+    }
+
+    // Reordena localmente
+    const reordered = [...products];
+    const [moved] = reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+    setProducts(reordered);
+    handleProductDragEnd();
+
+    // Salva no backend
+    setIsSavingOrder(true);
+    try {
+      const res = await fetch("/api/admin/products/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds: reordered.map((p) => p.id) }),
+      });
+      if (!res.ok) {
+        showToast("Erro ao salvar ordem", "error");
+        loadData();
+      }
+    } catch {
+      showToast("Erro ao salvar ordem", "error");
+      loadData();
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
+  const isReorderEnabled = searchQuery === "" && filterCategory === "all" && filterStatus === "all";
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = filterCategory === "all" || product.category === filterCategory;
@@ -710,16 +782,34 @@ export default function ProdutosPage() {
             </div>
           </div>
 
-          {/* Results Count */}
-          {(searchQuery || filterCategory !== "all" || filterStatus !== "all") && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
+          {/* Results Count & Reorder hint */}
+          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+            {(searchQuery || filterCategory !== "all" || filterStatus !== "all") ? (
               <p className="text-sm text-secondary/60">
                 Encontrado{filteredProducts.length !== 1 ? "s" : ""}{" "}
                 <span className="font-semibold text-secondary-dark">{filteredProducts.length}</span>{" "}
                 produto{filteredProducts.length !== 1 ? "s" : ""}
               </p>
+            ) : <div />}
+            <div className="flex items-center gap-2 text-xs text-secondary/50">
+              {isSavingOrder ? (
+                <>
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  Salvando ordem...
+                </>
+              ) : isReorderEnabled ? (
+                <>
+                  <GripVertical className="w-3 h-3" />
+                  Arraste para reordenar
+                </>
+              ) : (
+                <>
+                  <GripVertical className="w-3 h-3 opacity-50" />
+                  Remova os filtros para reordenar
+                </>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -771,11 +861,35 @@ export default function ProdutosPage() {
           {filteredProducts.map((product) => (
             <div
               key={product.id}
+              draggable={isReorderEnabled}
+              onDragStart={(e) => handleProductDragStart(e, product.id)}
+              onDragOver={(e) => handleProductDragOver(e, product.id)}
+              onDragEnd={handleProductDragEnd}
+              onDrop={(e) => handleProductDrop(e, product.id)}
               className={cn(
-                "bg-white rounded-2xl border-2 overflow-hidden transition-all duration-200 hover:shadow-lg group",
-                product.available ? "border-gray-100" : "border-red-200 bg-red-50/30"
+                "bg-white rounded-2xl border-2 overflow-hidden transition-all duration-200 hover:shadow-lg group relative",
+                product.available ? "border-gray-100" : "border-red-200 bg-red-50/30",
+                dragProductId === product.id && "opacity-40 scale-95 rotate-1",
+                dragOverProductId === product.id && "border-primary ring-2 ring-primary/30 scale-[1.02]",
+                isReorderEnabled && "cursor-grab active:cursor-grabbing"
               )}
             >
+              {/* Drag Handle */}
+              {isReorderEnabled && (
+                <div className="absolute top-3 right-3 z-20 p-1.5 bg-white/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <GripVertical className="w-4 h-4 text-secondary/40" />
+                </div>
+              )}
+
+              {/* Drop indicator */}
+              {dragOverProductId === product.id && dragProductId !== product.id && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-primary/5 rounded-2xl pointer-events-none">
+                  <span className="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg shadow-lg">
+                    Soltar aqui
+                  </span>
+                </div>
+              )}
+
               {/* Image */}
               <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
                 {product.image ? (
@@ -807,21 +921,21 @@ export default function ProdutosPage() {
                 {/* Quick Actions */}
                 <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() => handleOpenForm(product)}
+                    onClick={(e) => { e.stopPropagation(); handleOpenForm(product); }}
                     className="p-2 bg-white/90 hover:bg-white rounded-lg shadow-sm transition-colors"
                     title="Editar"
                   >
                     <Edit className="w-4 h-4 text-secondary" />
                   </button>
                   <button
-                    onClick={() => handleDuplicate(product)}
+                    onClick={(e) => { e.stopPropagation(); handleDuplicate(product); }}
                     className="p-2 bg-white/90 hover:bg-blue-50 rounded-lg shadow-sm transition-colors"
                     title="Duplicar"
                   >
                     <Copy className="w-4 h-4 text-blue-500" />
                   </button>
                   <button
-                    onClick={() => handleDelete(product.id)}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}
                     className="p-2 bg-white/90 hover:bg-red-50 rounded-lg shadow-sm transition-colors"
                     title="Excluir"
                   >
@@ -844,7 +958,7 @@ export default function ProdutosPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-bold text-primary">{formatCurrency(product.price)}</span>
                   <button
-                    onClick={() => handleToggleAvailability(product)}
+                    onClick={(e) => { e.stopPropagation(); handleToggleAvailability(product); }}
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
                       product.available
@@ -874,9 +988,25 @@ export default function ProdutosPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={product.id}
+                    draggable={isReorderEnabled}
+                    onDragStart={(e) => handleProductDragStart(e, product.id)}
+                    onDragOver={(e) => handleProductDragOver(e, product.id)}
+                    onDragEnd={handleProductDragEnd}
+                    onDrop={(e) => handleProductDrop(e, product.id)}
+                    className={cn(
+                      "hover:bg-gray-50 transition-all",
+                      dragProductId === product.id && "opacity-40",
+                      dragOverProductId === product.id && "bg-primary/5 shadow-inner",
+                      isReorderEnabled && "cursor-grab active:cursor-grabbing"
+                    )}
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
+                        {isReorderEnabled && (
+                          <GripVertical className="w-4 h-4 text-secondary/30 flex-shrink-0" />
+                        )}
                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100">
                           {product.image ? (
                             <Image
