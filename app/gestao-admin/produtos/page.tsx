@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -536,6 +536,61 @@ export default function ProdutosPage() {
     }
   };
 
+  // --- Auto-scroll durante drag ---
+  const scrollAnimRef = useRef<number | null>(null);
+
+  const startAutoScroll = useCallback((clientY: number) => {
+    if (scrollAnimRef.current) cancelAnimationFrame(scrollAnimRef.current);
+
+    const EDGE_SIZE = 80;
+    const MAX_SPEED = 18;
+    const viewportH = window.innerHeight;
+
+    const scroll = () => {
+      let speed = 0;
+      if (clientY < EDGE_SIZE) {
+        speed = -MAX_SPEED * (1 - clientY / EDGE_SIZE);
+      } else if (clientY > viewportH - EDGE_SIZE) {
+        speed = MAX_SPEED * (1 - (viewportH - clientY) / EDGE_SIZE);
+      }
+      if (speed !== 0) {
+        window.scrollBy(0, speed);
+        scrollAnimRef.current = requestAnimationFrame(scroll);
+      } else {
+        scrollAnimRef.current = null;
+      }
+    };
+    scroll();
+  }, []);
+
+  const stopAutoScroll = useCallback(() => {
+    if (scrollAnimRef.current) {
+      cancelAnimationFrame(scrollAnimRef.current);
+      scrollAnimRef.current = null;
+    }
+  }, []);
+
+  // Listener global de dragover para auto-scroll
+  useEffect(() => {
+    if (!dragProductId) return;
+
+    const onDragOver = (e: DragEvent) => {
+      startAutoScroll(e.clientY);
+    };
+    const onDragEnd = () => stopAutoScroll();
+
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("dragend", onDragEnd);
+    window.addEventListener("drop", onDragEnd);
+
+    return () => {
+      stopAutoScroll();
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("dragend", onDragEnd);
+      window.removeEventListener("drop", onDragEnd);
+    };
+  }, [dragProductId, startAutoScroll, stopAutoScroll]);
+
   // --- Drag and drop para reordenar produtos ---
   const handleProductDragStart = (e: React.DragEvent, productId: string) => {
     setDragProductId(productId);
@@ -559,6 +614,7 @@ export default function ProdutosPage() {
   const handleProductDragEnd = () => {
     setDragProductId(null);
     setDragOverProductId(null);
+    stopAutoScroll();
   };
 
   const handleProductDrop = async (e: React.DragEvent, targetId: string) => {
