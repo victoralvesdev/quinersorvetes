@@ -188,7 +188,8 @@ Esperamos que você aproveite seu pedido. Até a próxima! 💜`;
         try {
           const settings = await getPublicSettings();
           if (settings.points_enabled) {
-            const orderTotal = orderData.order?.total || 0;
+            const freightFee = orderData.order?.freight_fee || 0;
+            const orderTotal = Math.max(0, (orderData.order?.total || 0) - freightFee);
             await awardPointsForOrder(
               orderData.userPhone,
               orderId,

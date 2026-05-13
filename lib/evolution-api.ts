@@ -385,10 +385,11 @@ ${addressText}`;
       for (const adminPhone of adminNumbers) {
         console.log('[sendOrderMessage] Enviando mensagem para admin:', adminPhone);
         await sendTextMessage(adminPhone, description);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await sendTextMessage(adminPhone, `Confirmar #${orderCode}`);
-        await new Promise(resolve => setTimeout(resolve, 300));
-        await sendTextMessage(adminPhone, `Cancelar #${orderCode}`);
+        // Botões de confirmar/cancelar desativados — admin usa o painel web
+        // await new Promise(resolve => setTimeout(resolve, 500));
+        // await sendTextMessage(adminPhone, `Confirmar #${orderCode}`);
+        // await new Promise(resolve => setTimeout(resolve, 300));
+        // await sendTextMessage(adminPhone, `Cancelar #${orderCode}`);
       }
       console.log('[sendOrderMessage] Mensagens enviadas para', adminNumbers.length, 'admin(s)');
     } else {
