@@ -1,16 +1,14 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { ShoppingCart, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ProductCard } from "@/components/cardapio/ProductCard";
 import { CategoryFilter } from "@/components/cardapio/CategoryFilter";
 import { SearchBar } from "@/components/cardapio/SearchBar";
 import { Cart } from "@/components/cardapio/Cart";
 import { ProductModal } from "@/components/cardapio/ProductModal";
-import { Button } from "@/components/ui/Button";
 import { BottomNav } from "@/components/mobile/BottomNav";
 import { Product, Category } from "@/types/product";
-import { useCartStore } from "@/store/cartStore";
 import { useCartContext } from "@/contexts/CartContext";
 
 export default function CardapioPage() {
@@ -19,8 +17,7 @@ export default function CardapioPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const itemCount = useCartStore((state) => state.getItemCount());
-  const { isCartOpen, openCart, closeCart, searchQuery, setSearchQuery } = useCartContext();
+  const { isCartOpen, closeCart, searchQuery, setSearchQuery } = useCartContext();
 
   // Carrega produtos e categorias do Supabase
   useEffect(() => {
@@ -114,30 +111,13 @@ export default function CardapioPage() {
       {/* Desktop Layout */}
       <div className="hidden md:block min-h-screen bg-background py-8">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-secondary mb-2">
-                Cardápio Digital
-              </h1>
-              <p className="text-gray-600">
-                Escolha seus produtos favoritos
-              </p>
-            </div>
-
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={openCart}
-              className="relative"
-            >
-              <ShoppingCart className="w-5 h-5 mr-2" />
-              Carrinho
-              {itemCount > 0 && (
-                <span className="ml-2 bg-white text-primary px-2 py-0.5 rounded-full text-sm font-bold">
-                  {itemCount}
-                </span>
-              )}
-            </Button>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-secondary mb-2">
+              Cardápio Digital
+            </h1>
+            <p className="text-gray-600">
+              Escolha seus produtos favoritos
+            </p>
           </div>
 
           {content}
