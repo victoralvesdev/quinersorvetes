@@ -1,79 +1,114 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin as supabase } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import {
+  getUserByEmail,
+  getUserByPhone,
+  updateUser,
+  registerUserByEmail,
+} from "@/lib/supabase/users";
 
-// Formata o telefone para o padrão internacional
-function formatPhoneNumber(phone: string): string {
-  const cleaned = phone.replace(/\D/g, "");
-  if (!cleaned.startsWith("55")) {
-    return `55${cleaned}`;
-  }
-  return cleaned;
-}
+type Action = "login" | "register" | "link";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { phone, code } = body;
+    const { email, code, action, name, phone } = body as {
+      email?: string;
+      code?: string;
+      action?: Action;
+      name?: string;
+      phone?: string;
+    };
 
-    if (!phone || !code) {
+    if (!email || !code) {
       return NextResponse.json(
-        { error: "Telefone e código são obrigatórios" },
+        { error: "Email e código são obrigatórios" },
         { status: 400 }
       );
     }
 
-    const formattedPhone = formatPhoneNumber(phone);
+    const normalizedEmail = String(email).trim().toLowerCase();
 
-    // Busca o código mais recente não utilizado para este telefone
-    const { data: verificationData, error: selectError } = await supabase
-      .from("verification_codes")
-      .select("*")
-      .eq("phone", formattedPhone)
-      .eq("code", code)
-      .eq("used", false)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    const { error } = await supabaseAdmin.auth.verifyOtp({
+      email: normalizedEmail,
+      token: String(code),
+      type: "email",
+    });
 
-    if (selectError || !verificationData) {
-      console.log("[VerifyCode] Código não encontrado:", { phone: formattedPhone, code });
+    if (error) {
+      console.log("[VerifyCode] Código inválido:", {
+        email: normalizedEmail,
+        message: error.message,
+      });
       return NextResponse.json(
         { error: "Código inválido ou expirado" },
         { status: 400 }
       );
     }
 
-    // Verifica se o código expirou
-    const expiresAt = new Date(verificationData.expires_at);
-    if (expiresAt < new Date()) {
-      console.log("[VerifyCode] Código expirado:", { phone: formattedPhone, expiresAt });
+    console.log(`[VerifyCode] Código verificado com sucesso para ${normalizedEmail}`);
+
+    if (action === "register") {
+      if (!name || !phone) {
+        return NextResponse.json(
+          { error: "Nome e telefone são obrigatórios" },
+          { status: 400 }
+        );
+      }
+
+      const cleanedPhone = String(phone).replace(/\D/g, "");
+      const result = await registerUserByEmail({
+        name,
+        phone: cleanedPhone,
+        email: normalizedEmail,
+      });
+
+      if (result.status === "phone_conflict") {
+        return NextResponse.json(
+          {
+            error:
+              "Esse telefone já está cadastrado. Use 'Já sou cliente, localizar por telefone' para vincular seu email.",
+          },
+          { status: 409 }
+        );
+      }
+
+      return NextResponse.json({ success: true, verified: true, user: result.user });
+    }
+
+    if (action === "link") {
+      if (!phone) {
+        return NextResponse.json(
+          { error: "Telefone é obrigatório" },
+          { status: 400 }
+        );
+      }
+
+      const cleanedPhone = String(phone).replace(/\D/g, "");
+      const foundUser = await getUserByPhone(cleanedPhone);
+
+      if (!foundUser) {
+        return NextResponse.json(
+          { error: "Não encontramos nenhuma conta com esse telefone." },
+          { status: 404 }
+        );
+      }
+
+      const updated = await updateUser(foundUser.id, { email: normalizedEmail });
+      return NextResponse.json({ success: true, verified: true, user: updated });
+    }
+
+    // action === "login" (default)
+    const user = await getUserByEmail(normalizedEmail);
+
+    if (!user) {
       return NextResponse.json(
-        { error: "Código expirado. Solicite um novo código." },
-        { status: 400 }
+        { error: "Usuário não encontrado" },
+        { status: 404 }
       );
     }
 
-    // Marca o código como utilizado
-    const { error: updateError } = await supabase
-      .from("verification_codes")
-      .update({
-        used: true,
-        verified_at: new Date().toISOString()
-      })
-      .eq("id", verificationData.id);
-
-    if (updateError) {
-      console.error("[VerifyCode] Erro ao atualizar código:", updateError);
-      // Continua mesmo com erro - código foi validado
-    }
-
-    console.log(`[VerifyCode] Código verificado com sucesso para ${formattedPhone}`);
-
-    return NextResponse.json({
-      success: true,
-      verified: true,
-      message: "Código verificado com sucesso",
-    });
+    return NextResponse.json({ success: true, verified: true, user });
   } catch (error) {
     console.error("[VerifyCode] Erro:", error);
     return NextResponse.json(

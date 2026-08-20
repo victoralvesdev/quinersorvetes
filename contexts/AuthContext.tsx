@@ -7,8 +7,9 @@ import { useCartStore } from "@/store/cartStore";
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (phone: string) => Promise<void>;
+  login: (email: string) => Promise<void>;
   register: (data: UserFormData) => Promise<void>;
+  setSession: (user: User) => void;
   logout: () => void;
   isAuthenticated: boolean;
   refreshUser: () => Promise<void>;
@@ -20,24 +21,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Carregar usuário do localStorage ao iniciar
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // Verificar se está no cliente antes de acessar localStorage
         if (typeof window === "undefined") {
           setIsLoading(false);
           return;
         }
 
-        const savedPhone = localStorage.getItem("quiner_user_phone");
-        if (savedPhone) {
-          const res = await fetch(`/api/users?phone=${encodeURIComponent(savedPhone)}`);
+        const savedEmail = localStorage.getItem("quiner_user_email");
+        if (savedEmail) {
+          const res = await fetch(`/api/users?email=${encodeURIComponent(savedEmail)}`);
           const userData: User | null = res.ok ? await res.json() : null;
           if (userData) {
             setUser(userData);
           } else {
-            localStorage.removeItem("quiner_user_phone");
+            localStorage.removeItem("quiner_user_email");
           }
         }
       } catch (error) {
@@ -50,15 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, []);
 
-  const login = async (phone: string) => {
+  const login = async (email: string) => {
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/users?phone=${encodeURIComponent(phone)}`);
+      const res = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
       const userData: User | null = res.ok ? await res.json() : null;
       if (userData) {
         setUser(userData);
         if (typeof window !== "undefined") {
-          localStorage.setItem("quiner_user_phone", phone);
+          localStorage.setItem("quiner_user_email", email);
         }
       } else {
         throw new Error("Usuário não encontrado. Faça o cadastro primeiro.");
@@ -83,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData: User = await res.json();
       setUser(userData);
       if (typeof window !== "undefined") {
-        localStorage.setItem("quiner_user_phone", data.phone);
+        localStorage.setItem("quiner_user_email", data.email);
       }
     } catch (error) {
       console.error("Erro ao registrar:", error);
@@ -93,17 +92,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setSession = (userData: User) => {
+    setUser(userData);
+    if (typeof window !== "undefined" && userData.email) {
+      localStorage.setItem("quiner_user_email", userData.email);
+    }
+  };
+
   const logout = () => {
     setUser(null);
     if (typeof window !== "undefined") {
-      localStorage.removeItem("quiner_user_phone");
+      localStorage.removeItem("quiner_user_email");
     }
   };
 
   const refreshUser = async () => {
-    if (!user?.phone) return;
+    if (!user?.email) return;
     try {
-      const res = await fetch(`/api/users?phone=${encodeURIComponent(user.phone)}`);
+      const res = await fetch(`/api/users?email=${encodeURIComponent(user.email)}`);
       const userData: User | null = res.ok ? await res.json() : null;
       if (userData) setUser(userData);
     } catch {
@@ -118,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         register,
+        setSession,
         logout,
         isAuthenticated: !!user,
         refreshUser,

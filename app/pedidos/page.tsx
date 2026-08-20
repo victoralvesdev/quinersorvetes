@@ -20,7 +20,6 @@ import { Cart } from "@/components/cardapio/Cart";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCartContext } from "@/contexts/CartContext";
 import { useLoginModal } from "@/contexts/LoginModalContext";
-import { LoginModal } from "@/components/auth/LoginModal";
 import type { Order } from "@/lib/supabase/orders";
 import { useToast } from "@/components/ui/Toast";
 
@@ -390,7 +389,7 @@ function LoginPrompt({ onLogin }: { onLogin: () => void }) {
 export default function PedidosPage() {
   const { user, isAuthenticated } = useAuth();
   const { isCartOpen, closeCart } = useCartContext();
-  const { isOpen: isLoginOpen, closeModal: closeLoginModal, openModal: openLoginModal } = useLoginModal();
+  const { openModal: openLoginModal } = useLoginModal();
   const { showToast } = useToast();
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -636,10 +635,6 @@ export default function PedidosPage() {
         onCheckout={openLoginModal}
       />
 
-      <LoginModal
-        isOpen={isLoginOpen}
-        onClose={closeLoginModal}
-      />
     </>
   );
 }

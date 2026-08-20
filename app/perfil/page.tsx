@@ -34,7 +34,6 @@ import { useCoupons } from "@/contexts/CouponContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { usePoints } from "@/contexts/PointsContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { LoginModal } from "@/components/auth/LoginModal";
 import { Address, AddressFormData } from "@/types/address";
 import { UserCoupon } from "@/types/coupon";
 import { Product } from "@/types/product";
@@ -778,7 +777,7 @@ function LoginPrompt({ onLogin }: { onLogin: () => void }) {
 export default function PerfilPage() {
   const { user, isAuthenticated, logout } = useAuth();
   const { isCartOpen, closeCart } = useCartContext();
-  const { isOpen: isLoginOpen, closeModal: closeLoginModal, openModal: openLoginModal } = useLoginModal();
+  const { openModal: openLoginModal } = useLoginModal();
   const { coupons, couponsCount, isLoading: isCouponsLoading, refreshCoupons } = useCoupons();
   const { favorites, isLoading: isFavoritesLoading, toggleFavorite } = useFavorites();
   const router = useRouter();
@@ -1031,8 +1030,6 @@ export default function PerfilPage() {
 
       {/* Shared Modals */}
       <Cart isOpen={isCartOpen} onClose={closeCart} onCheckout={openLoginModal} />
-
-      <LoginModal isOpen={isLoginOpen} onClose={closeLoginModal} />
     </>
   );
 }

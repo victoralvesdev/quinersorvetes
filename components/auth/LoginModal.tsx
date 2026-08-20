@@ -1,19 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, User, Phone, LogOut, ArrowLeft, MessageCircle, RefreshCw } from "lucide-react";
+import { X, User, Phone, Mail, LogOut, ArrowLeft, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
+import type { User as UserType } from "@/types/user";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 
 const loginSchema = z.object({
-  phone: z
-    .string()
-    .min(10, "Telefone deve ter pelo menos 10 dígitos")
-    .regex(/^[\d\s()-]+$/, "Telefone inválido"),
+  email: z.string().trim().toLowerCase().email("Email inválido"),
 });
 
 const registerSchema = z.object({
@@ -22,12 +20,26 @@ const registerSchema = z.object({
     .string()
     .min(10, "Telefone deve ter pelo menos 10 dígitos")
     .regex(/^[\d\s()-]+$/, "Telefone inválido"),
+  email: z.string().trim().toLowerCase().email("Email inválido"),
+});
+
+const recoverPhoneSchema = z.object({
+  phone: z
+    .string()
+    .min(10, "Telefone deve ter pelo menos 10 dígitos")
+    .regex(/^[\d\s()-]+$/, "Telefone inválido"),
+});
+
+const recoverEmailSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Email inválido"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
+type RecoverPhoneFormData = z.infer<typeof recoverPhoneSchema>;
+type RecoverEmailFormData = z.infer<typeof recoverEmailSchema>;
 
-type Step = "form" | "verification";
+type Step = "form" | "recoverPhone" | "recoverEmail" | "verification";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -48,7 +60,6 @@ function CodeInput({
   const codeLength = 6;
 
   const handleChange = (index: number, inputValue: string) => {
-    // Aceita apenas números
     const digit = inputValue.replace(/\D/g, "").slice(-1);
 
     const newValue = value.split("");
@@ -56,14 +67,12 @@ function CodeInput({
     const newCode = newValue.join("").slice(0, codeLength);
     onChange(newCode);
 
-    // Move para o próximo input se digitou um número
     if (digit && index < codeLength - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    // Move para o input anterior no backspace
     if (e.key === "Backspace" && !value[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -74,7 +83,6 @@ function CodeInput({
     const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, codeLength);
     onChange(pastedData);
 
-    // Foca no próximo input vazio ou no último
     const nextIndex = Math.min(pastedData.length, codeLength - 1);
     inputRefs.current[nextIndex]?.focus();
   };
@@ -114,10 +122,12 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
-  const [pendingPhone, setPendingPhone] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
   const [pendingName, setPendingName] = useState("");
+  const [pendingPhone, setPendingPhone] = useState("");
+  const [linkingUserId, setLinkingUserId] = useState<string | null>(null);
   const [resendCountdown, setResendCountdown] = useState(0);
-  const { user, isAuthenticated, login, register: registerUser, logout } = useAuth();
+  const { user, isAuthenticated, setSession, logout } = useAuth();
 
   const {
     register: registerLogin,
@@ -138,7 +148,24 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     resolver: zodResolver(registerSchema),
   });
 
-  // Countdown timer for resend
+  const {
+    register: registerRecoverPhone,
+    handleSubmit: handleRecoverPhoneSubmit,
+    formState: { errors: recoverPhoneErrors },
+    reset: resetRecoverPhone,
+  } = useForm<RecoverPhoneFormData>({
+    resolver: zodResolver(recoverPhoneSchema),
+  });
+
+  const {
+    register: registerRecoverEmail,
+    handleSubmit: handleRecoverEmailSubmit,
+    formState: { errors: recoverEmailErrors },
+    reset: resetRecoverEmail,
+  } = useForm<RecoverEmailFormData>({
+    resolver: zodResolver(recoverEmailSchema),
+  });
+
   useEffect(() => {
     if (resendCountdown > 0) {
       const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
@@ -146,19 +173,25 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }
   }, [resendCountdown]);
 
-  // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       setStep("form");
+      setIsRegister(false);
       setVerificationCode("");
-      setPendingPhone("");
+      setPendingEmail("");
       setPendingName("");
+      setPendingPhone("");
+      setLinkingUserId(null);
       setError(null);
       setSuccess(null);
       setNotRegisteredInfo(null);
       setResendCountdown(0);
+      resetLogin();
+      resetRegister();
+      resetRecoverPhone();
+      resetRecoverEmail();
     }
-  }, [isOpen]);
+  }, [isOpen, resetLogin, resetRegister, resetRecoverPhone, resetRecoverEmail]);
 
   if (!isOpen) return null;
 
@@ -175,8 +208,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     onClose();
   };
 
-  // Envia o código de verificação
-  const sendVerificationCode = async (phone: string) => {
+  const sendVerificationCode = async (email: string) => {
     setIsSendingCode(true);
     setError(null);
 
@@ -184,7 +216,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       const response = await fetch("/api/auth/send-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await response.json();
@@ -194,7 +226,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       }
 
       setStep("verification");
-      setResendCountdown(60); // 60 segundos para reenviar
+      setResendCountdown(60);
       return true;
     } catch (err: any) {
       setError(err.message || "Erro ao enviar código de verificação");
@@ -204,15 +236,23 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }
   };
 
-  // Verifica o código
-  const verifyCode = async (): Promise<boolean> => {
+  const verifyCode = async (): Promise<UserType | null> => {
     try {
+      const action: "login" | "register" | "link" = linkingUserId
+        ? "link"
+        : isRegister
+        ? "register"
+        : "login";
+
       const response = await fetch("/api/auth/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: pendingPhone,
+          email: pendingEmail,
           code: verificationCode,
+          action,
+          ...(action === "register" ? { name: pendingName, phone: pendingPhone } : {}),
+          ...(action === "link" ? { phone: pendingPhone } : {}),
         }),
       });
 
@@ -222,55 +262,90 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
         throw new Error(data.error || "Código inválido");
       }
 
-      return true;
+      return data.user as UserType;
     } catch (err: any) {
       setError(err.message || "Código inválido");
-      return false;
+      return null;
     }
   };
 
-  // Login flow: verifica se usuário existe -> envia código ou redireciona para cadastro
+  // Login flow: verifica se o email existe -> envia código, ou oferece
+  // cadastro/recuperação por telefone
   const onLoginSubmit = async (data: LoginFormData) => {
-    const cleanedPhone = data.phone.replace(/\D/g, "");
+    const cleanedEmail = data.email.trim().toLowerCase();
     setIsSendingCode(true);
     setError(null);
     setNotRegisteredInfo(null);
+    setLinkingUserId(null);
 
     try {
-      const userRes = await fetch(`/api/users?phone=${encodeURIComponent(cleanedPhone)}`);
+      const userRes = await fetch(`/api/users?email=${encodeURIComponent(cleanedEmail)}`);
       const existingUser = userRes.ok ? await userRes.json() : null;
 
       if (!existingUser) {
-        // Usuário não cadastrado: troca para tela de cadastro com telefone preenchido
-        setIsRegister(true);
-        setNotRegisteredInfo("Número não encontrado. Preencha seu nome para se cadastrar.");
-        resetRegister();
-        setRegisterValue("phone", data.phone);
         setIsSendingCode(false);
+        setPendingEmail(cleanedEmail);
+        setNotRegisteredInfo("Não encontramos uma conta com esse email.");
         return;
       }
     } catch {
-      // Se falhar a consulta, tenta enviar o código normalmente
       setIsSendingCode(false);
-      setPendingPhone(cleanedPhone);
-      await sendVerificationCode(cleanedPhone);
+      setPendingEmail(cleanedEmail);
+      await sendVerificationCode(cleanedEmail);
       return;
     }
 
     setIsSendingCode(false);
-    setPendingPhone(cleanedPhone);
-    await sendVerificationCode(cleanedPhone);
+    setPendingEmail(cleanedEmail);
+    await sendVerificationCode(cleanedEmail);
   };
 
-  // Register flow: solicita nome e telefone -> envia código
+  // Register flow: nome + telefone + email -> envia código
   const onRegisterSubmit = async (data: RegisterFormData) => {
     const cleanedPhone = data.phone.replace(/\D/g, "");
+    const cleanedEmail = data.email.trim().toLowerCase();
     setPendingPhone(cleanedPhone);
     setPendingName(data.name);
-    await sendVerificationCode(cleanedPhone);
+    setPendingEmail(cleanedEmail);
+    setLinkingUserId(null);
+    await sendVerificationCode(cleanedEmail);
   };
 
-  // Verifica código e completa login/registro
+  // Recuperação passo 1: localiza a conta antiga pelo telefone
+  const onRecoverPhoneSubmit = async (data: RecoverPhoneFormData) => {
+    const cleanedPhone = data.phone.replace(/\D/g, "");
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const res = await fetch(`/api/users?phone=${encodeURIComponent(cleanedPhone)}`);
+      const foundUser = res.ok ? await res.json() : null;
+
+      if (!foundUser) {
+        setError("Não encontramos nenhuma conta com esse telefone. Faça um novo cadastro.");
+        setIsLoading(false);
+        return;
+      }
+
+      setLinkingUserId(foundUser.id);
+      setPendingName(foundUser.name);
+      setPendingPhone(cleanedPhone);
+      setStep("recoverEmail");
+    } catch {
+      setError("Erro ao buscar sua conta. Tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Recuperação passo 2: confirma o email a vincular e envia o código
+  const onRecoverEmailSubmit = async (data: RecoverEmailFormData) => {
+    const cleanedEmail = data.email.trim().toLowerCase();
+    setPendingEmail(cleanedEmail);
+    await sendVerificationCode(cleanedEmail);
+  };
+
+  // Verifica código e completa login/registro/vínculo de email
   const onVerifyCode = async () => {
     if (verificationCode.length !== 6) {
       setError("Digite o código completo de 6 dígitos");
@@ -281,26 +356,26 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     setError(null);
 
     try {
-      const isValid = await verifyCode();
-      if (!isValid) {
+      const verifiedUser = await verifyCode();
+      if (!verifiedUser) {
         setIsLoading(false);
         return;
       }
 
-      // Código verificado - procede com login ou registro
-      if (isRegister) {
-        await registerUser({
-          name: pendingName,
-          phone: pendingPhone,
-        });
+      setSession(verifiedUser);
+
+      if (linkingUserId) {
+        setSuccess("Email vinculado com sucesso! Login realizado.");
+      } else if (isRegister) {
         setSuccess("Cadastro realizado com sucesso! Bem-vindo!");
       } else {
-        await login(pendingPhone);
         setSuccess("Login realizado com sucesso!");
       }
 
       resetLogin();
       resetRegister();
+      resetRecoverPhone();
+      resetRecoverEmail();
       setTimeout(() => {
         onClose();
       }, 1500);
@@ -311,15 +386,18 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }
   };
 
-  // Reenviar código
   const handleResendCode = async () => {
     if (resendCountdown > 0) return;
-    await sendVerificationCode(pendingPhone);
+    await sendVerificationCode(pendingEmail);
   };
 
-  // Voltar para o formulário
-  const handleBack = () => {
-    setStep("form");
+  const handleBackFromVerification = () => {
+    if (linkingUserId) {
+      setStep("recoverEmail");
+    } else {
+      setStep("form");
+      setLinkingUserId(null);
+    }
     setVerificationCode("");
     setError(null);
   };
@@ -330,10 +408,14 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     setIsRegister(false);
     setStep("form");
     setVerificationCode("");
-    setPendingPhone("");
+    setPendingEmail("");
     setPendingName("");
+    setPendingPhone("");
+    setLinkingUserId(null);
     resetLogin();
     resetRegister();
+    resetRecoverPhone();
+    resetRecoverEmail();
     onClose();
   };
 
@@ -348,15 +430,27 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
           <X className="w-5 h-5 text-secondary" />
         </button>
 
-        {/* Back Button (verification step) */}
-        {step === "verification" && !isAuthenticated && (
-          <button
-            onClick={handleBack}
-            className="absolute top-4 left-4 w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors z-10"
-          >
-            <ArrowLeft className="w-5 h-5 text-secondary" />
-          </button>
-        )}
+        {/* Back Button */}
+        {(step === "verification" || step === "recoverPhone" || step === "recoverEmail") &&
+          !isAuthenticated && (
+            <button
+              onClick={() => {
+                if (step === "verification") {
+                  handleBackFromVerification();
+                } else if (step === "recoverEmail") {
+                  setStep("recoverPhone");
+                  setError(null);
+                } else if (step === "recoverPhone") {
+                  setStep("form");
+                  setLinkingUserId(null);
+                  setError(null);
+                }
+              }}
+              className="absolute top-4 left-4 w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors z-10"
+            >
+              <ArrowLeft className="w-5 h-5 text-secondary" />
+            </button>
+          )}
 
         {/* Error Message */}
         {error && (
@@ -393,6 +487,18 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
                 <div className="w-12 h-12 bg-gradient-to-br from-secondary to-secondary-dark rounded-xl flex items-center justify-center shadow-lg">
+                  <Mail className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-secondary/50 font-medium uppercase tracking-wide">Email</p>
+                  <p className="text-lg font-semibold text-secondary-dark">
+                    {user.email || "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
+                <div className="w-12 h-12 bg-gradient-to-br from-secondary to-secondary-dark rounded-xl flex items-center justify-center shadow-lg">
                   <Phone className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
@@ -417,16 +523,16 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
           <div className="space-y-6">
             <div className="text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/25">
-                <MessageCircle className="w-8 h-8 text-white" />
+                <Mail className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-secondary-dark mb-2">
                 Verificação
               </h2>
               <p className="text-secondary/60 text-sm">
-                Enviamos um código de 6 dígitos para o WhatsApp
+                Enviamos um código de 6 dígitos para o email
               </p>
               <p className="text-primary font-semibold mt-1">
-                {formatPhone(pendingPhone)}
+                {pendingEmail}
               </p>
             </div>
 
@@ -455,7 +561,6 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
               </button>
             </div>
 
-            {/* Resend Code */}
             <div className="text-center">
               {resendCountdown > 0 ? (
                 <p className="text-sm text-secondary/60">
@@ -481,6 +586,109 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
               Todas as atualizações dos seus pedidos serão enviadas pelo WhatsApp
             </p>
           </div>
+        ) : step === "recoverPhone" ? (
+          /* Recover step 1: locate old account by phone */
+          <form onSubmit={handleRecoverPhoneSubmit(onRecoverPhoneSubmit)} className="space-y-5">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-secondary-dark">Já tenho conta</h2>
+              <p className="text-secondary/60 text-sm">
+                Digite o telefone que você usava para localizar sua conta
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-secondary-dark mb-2">
+                Telefone (WhatsApp)
+              </label>
+              <Input
+                {...registerRecoverPhone("phone")}
+                type="tel"
+                placeholder="(00) 00000-0000"
+                className={cn(
+                  "h-12 rounded-xl",
+                  recoverPhoneErrors.phone && "border-red-500"
+                )}
+                onChange={(e) => {
+                  const formatted = formatPhone(e.target.value);
+                  e.target.value = formatted;
+                  registerRecoverPhone("phone").onChange(e);
+                }}
+              />
+              {recoverPhoneErrors.phone && (
+                <p className="text-red-500 text-xs mt-1">
+                  {recoverPhoneErrors.phone.message}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={cn(
+                "w-full py-4 rounded-2xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-2",
+                "bg-gradient-to-r from-primary to-primary-dark text-white",
+                "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
+                "disabled:opacity-70 disabled:cursor-not-allowed"
+              )}
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                "Localizar conta"
+              )}
+            </button>
+          </form>
+        ) : step === "recoverEmail" ? (
+          /* Recover step 2: confirm the email to link */
+          <form onSubmit={handleRecoverEmailSubmit(onRecoverEmailSubmit)} className="space-y-5">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-secondary-dark">Confirme seu email</h2>
+              <p className="text-secondary/60 text-sm">
+                {pendingName ? `Encontramos sua conta, ${pendingName.split(" ")[0]}! ` : ""}
+                Cadastre um email para entrar a partir de agora
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-secondary-dark mb-2">
+                Email
+              </label>
+              <Input
+                {...registerRecoverEmail("email")}
+                type="email"
+                placeholder="seu@email.com"
+                className={cn(
+                  "h-12 rounded-xl",
+                  recoverEmailErrors.email && "border-red-500"
+                )}
+              />
+              {recoverEmailErrors.email && (
+                <p className="text-red-500 text-xs mt-1">
+                  {recoverEmailErrors.email.message}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSendingCode}
+              className={cn(
+                "w-full py-4 rounded-2xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-2",
+                "bg-gradient-to-r from-primary to-primary-dark text-white",
+                "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
+                "disabled:opacity-70 disabled:cursor-not-allowed"
+              )}
+            >
+              {isSendingCode ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Enviando código...
+                </>
+              ) : (
+                "Enviar código"
+              )}
+            </button>
+          </form>
         ) : isRegister ? (
           /* Register Form */
           <form onSubmit={handleRegisterSubmit(onRegisterSubmit)} className="space-y-5">
@@ -488,12 +696,6 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
               <h2 className="text-2xl font-bold text-secondary-dark">Cadastre-se</h2>
               <p className="text-secondary/60 text-sm">Preencha seus dados para continuar</p>
             </div>
-
-            {notRegisteredInfo && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                <p className="text-amber-700 text-sm text-center font-medium">{notRegisteredInfo}</p>
-              </div>
-            )}
 
             <div>
               <label className="block text-sm font-medium text-secondary-dark mb-2">
@@ -539,7 +741,30 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </p>
               )}
               <p className="text-xs text-secondary/50 mt-1">
-                Você receberá um código de verificação via WhatsApp
+                Usaremos para as atualizações do seu pedido via WhatsApp
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-secondary-dark mb-2">
+                Email
+              </label>
+              <Input
+                {...registerForm("email")}
+                type="email"
+                placeholder="seu@email.com"
+                className={cn(
+                  "h-12 rounded-xl",
+                  registerErrors.email && "border-red-500"
+                )}
+              />
+              {registerErrors.email && (
+                <p className="text-red-500 text-xs mt-1">
+                  {registerErrors.email.message}
+                </p>
+              )}
+              <p className="text-xs text-secondary/50 mt-1">
+                Você receberá um código de verificação neste email
               </p>
             </div>
 
@@ -568,36 +793,61 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
           <form onSubmit={handleLoginSubmit(onLoginSubmit)} className="space-y-5">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-secondary-dark">Entrar</h2>
-              <p className="text-secondary/60 text-sm">Digite seu telefone para continuar</p>
+              <p className="text-secondary/60 text-sm">Digite seu email para continuar</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-secondary-dark mb-2">
-                Telefone (WhatsApp)
+                Email
               </label>
               <Input
-                {...registerLogin("phone")}
-                type="tel"
-                placeholder="(00) 00000-0000"
+                {...registerLogin("email")}
+                type="email"
+                placeholder="seu@email.com"
                 className={cn(
                   "h-12 rounded-xl",
-                  loginErrors.phone && "border-red-500"
+                  loginErrors.email && "border-red-500"
                 )}
-                onChange={(e) => {
-                  const formatted = formatPhone(e.target.value);
-                  e.target.value = formatted;
-                  registerLogin("phone").onChange(e);
-                }}
               />
-              {loginErrors.phone && (
+              {loginErrors.email && (
                 <p className="text-red-500 text-xs mt-1">
-                  {loginErrors.phone.message}
+                  {loginErrors.email.message}
                 </p>
               )}
               <p className="text-xs text-secondary/50 mt-1">
-                Você receberá um código de verificação via WhatsApp
+                Você receberá um código de verificação neste email
               </p>
             </div>
+
+            {notRegisteredInfo && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+                <p className="text-amber-700 text-sm text-center font-medium">{notRegisteredInfo}</p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsRegister(true);
+                      setNotRegisteredInfo(null);
+                      resetRegister();
+                      setRegisterValue("email", pendingEmail);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-colors"
+                  >
+                    Criar conta com esse email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotRegisteredInfo(null);
+                      setStep("recoverPhone");
+                    }}
+                    className="w-full py-2.5 rounded-xl border-2 border-amber-300 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-colors"
+                  >
+                    Já sou cliente, localizar por telefone
+                  </button>
+                </div>
+              </div>
+            )}
 
             <button
               type="submit"

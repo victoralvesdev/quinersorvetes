@@ -23,7 +23,7 @@ npm run lint       # Run linter
 **Hybrid approach**:
 1. **Zustand** (`store/cartStore.ts`) - Shopping cart state with methods: `addItem`, `removeItem`, `updateQuantity`, `clearCart`, `getTotal`, `getItemCount`
 2. **React Context** (`contexts/`) - Cross-cutting concerns
-   - `AuthContext` - Phone-based authentication with localStorage persistence (key: `quiner_user_phone`)
+   - `AuthContext` - Email-based authentication (Supabase Auth OTP) with localStorage persistence (key: `quiner_user_email`)
    - `AdminContext` - Admin password authentication with localStorage persistence (key: `quiner_admin_auth`)
    - `CartContext` - Convenience wrapper around Zustand cart store
    - `LoginModalContext` - Controls login modal visibility
@@ -64,12 +64,14 @@ app/api/
 
 ### Authentication Flow
 
-**WhatsApp Verification**:
-1. User enters phone number on login/register form
-2. API `/api/auth/send-code` generates 6-digit code and sends via WhatsApp
-3. Code stored in `verification_codes` table with 10-minute expiration
-4. User enters code, API `/api/auth/verify-code` validates
-5. On success, login/registration completes
+**Email Verification (Supabase Auth OTP)**:
+1. User enters email on the login form (registration also requires name + phone)
+2. API `/api/auth/send-code` calls Supabase Auth's `signInWithOtp({ email })`, which generates and emails a 6-digit code (Supabase-managed, no custom email code in this repo)
+3. User enters the code, API `/api/auth/verify-code` calls `verifyOtp({ email, token, type: "email" })`
+4. On success, the app resolves the user by email against its own `users` table (the Supabase Auth session returned by `verifyOtp` is discarded — the app keeps its own `localStorage`-based session, keyed by `quiner_user_email`)
+5. Existing phone-only accounts (pre-email) are linked to a new email via the "recover by phone" flow in `LoginModal`, which `PATCH`es the existing `users` row instead of creating a duplicate
+
+Phone remains required at registration and continues to power WhatsApp order notifications, delivery reminders, and the admin product-registration bot — none of that uses the login verification code.
 
 ### External Integrations
 
@@ -151,6 +153,8 @@ accent.pink: "#FFB6C1"
 
 **Key Types**:
 ```typescript
+User = { id, name, phone, email: string | null, cpf?, created_at, updated_at }
+UserFormData = { name, phone, email }  // email required on registration
 CartItem = { product: Product; quantity: number; }
 Order = { id, user_id, items: OrderItem[], total, status, payment_method, address_data, ... }
 OrderStatus = "novo" | "preparando" | "saiu_entrega" | "entregue" | "cancelado"
@@ -199,7 +203,7 @@ NEXT_PUBLIC_ADMIN_PASSWORD=your_admin_password
 
 1. **localStorage SSR**: Auth relies on localStorage - use `typeof window !== "undefined"` checks
 2. **Portuguese language**: All UI text and strings are in Portuguese (Brazil)
-3. **Phone-based auth**: Uses phone numbers with WhatsApp verification codes (no email/password)
+3. **Email-based auth**: Uses email with Supabase Auth OTP codes (no password); phone stays required for WhatsApp order notifications
 
 See `SUGESTOES.md` for a detailed analysis of remaining issues including:
 - Webhook signature verification

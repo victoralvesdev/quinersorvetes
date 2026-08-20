@@ -30,7 +30,7 @@ export async function getUserByPhone(phone: string): Promise<User | null> {
       try {
         const { data, error: retryError } = await supabase
           .from('users')
-          .select('id, name, phone, created_at, updated_at')
+          .select('id, name, phone, email, created_at, updated_at')
           .eq('phone', phone)
           .maybeSingle();
         
@@ -44,6 +44,29 @@ export async function getUserByPhone(phone: string): Promise<User | null> {
       }
     }
     console.error('Erro ao buscar usuário:', error);
+    throw error;
+  }
+}
+
+/**
+ * Busca um usuário pelo email
+ */
+export async function getUserByEmail(email: string): Promise<User | null> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Erro ao buscar usuário por email:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Erro ao buscar usuário por email:', error);
     throw error;
   }
 }
@@ -136,6 +159,39 @@ export async function findOrCreateUser(userData: UserFormData): Promise<User> {
     return await createUser(userData);
   } catch (error) {
     console.error('Erro ao buscar ou criar usuário:', error);
+    throw error;
+  }
+}
+
+export type RegisterResult =
+  | { status: 'created' | 'existing'; user: User }
+  | { status: 'phone_conflict' };
+
+/**
+ * Registra um usuário por email: busca por email primeiro (idempotente para
+ * quem já se cadastrou), e só cria uma linha nova quando nem o email nem o
+ * telefone já existem. Nunca sobrescreve/renomeia a conta de outra pessoa
+ * quando o telefone colide - sinaliza o conflito para o chamador decidir.
+ */
+export async function registerUserByEmail(data: UserFormData): Promise<RegisterResult> {
+  try {
+    const existingByEmail = await getUserByEmail(data.email);
+    if (existingByEmail) {
+      return { status: 'existing', user: existingByEmail };
+    }
+
+    const existingByPhone = await getUserByPhone(data.phone);
+    if (existingByPhone) {
+      // Telefone já pertence a outra conta (ou a uma conta legada sem email)
+      // - nunca renomeia/sobrescreve silenciosamente a partir de um cadastro
+      // não verificado.
+      return { status: 'phone_conflict' };
+    }
+
+    const user = await createUser(data);
+    return { status: 'created', user };
+  } catch (error) {
+    console.error('Erro ao registrar usuário por email:', error);
     throw error;
   }
 }
